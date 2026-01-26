@@ -13,6 +13,16 @@ def dashboard_page():
 
     st.title("📊 Dashboards")
 
+    # ===== NARASI SETELAH JUDUL =====
+    st.markdown(
+        """
+        Dashboard ini menyajikan hasil *Exploratory Data Analysis (EDA)* dan visualisasi data 
+        untuk memahami karakteristik dataset serta pola hubungan antar variabel. 
+        Analisis ini bertujuan untuk memberikan gambaran awal mengenai distribusi data, 
+        korelasi fitur numerik, serta faktor-faktor yang berpotensi memengaruhi tingkat risiko.
+        """
+    )
+
     # =========================================================
     # 🔍 EDA – Exploratory Data Analysis (UMUM)
     # =========================================================
@@ -29,7 +39,6 @@ def dashboard_page():
     st.write("### 📊 Statistik Deskriptif")
     st.dataframe(df.describe(), use_container_width=True)
 
-    # Heatmap Korelasi (numerik saja)
     numeric_df = df.select_dtypes(include="number")
     if numeric_df.shape[1] > 1:
         corr = numeric_df.corr()
@@ -40,98 +49,40 @@ def dashboard_page():
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        st.markdown(
+            """
+            **Interpretasi Heatmap Korelasi:**
+
+            Heatmap korelasi menunjukkan hubungan antar fitur numerik dalam dataset. 
+            Terlihat bahwa *SystolicBP* dan *DiastolicBP* memiliki korelasi positif yang kuat, 
+            yang menandakan bahwa peningkatan tekanan darah sistolik cenderung diikuti oleh 
+            peningkatan tekanan darah diastolik.
+
+            Fitur *Blood Sugar (BS)* menunjukkan korelasi sedang terhadap tekanan darah, 
+            sehingga berpotensi menjadi indikator penting dalam penentuan risiko kesehatan.
+            Sementara itu, *BodyTemp* dan *HeartRate* memiliki korelasi yang relatif rendah 
+            terhadap fitur lainnya.
+            """
+        )
+
     st.markdown("---")
-
-    # =========================================================
-    # 🌱 DATASET LINGKUNGAN – OCCUPANCY DETECTION
-    # =========================================================
-    if dataset_type == "Lingkungan":
-
-        st.subheader("🌱 Dashboard Lingkungan – Occupancy Detection")
-
-        total_data = df.shape[0]
-        occupied = df["Occupancy"].sum()
-        occupancy_rate = (occupied / total_data) * 100
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Data", total_data)
-        col2.metric("Ruang Terisi", occupied)
-        col3.metric("Persentase Terisi", f"{occupancy_rate:.2f}%")
-
-        st.dataframe(df.head(), use_container_width=True)
-
-        # ===== PIE CHART =====
-        col1, col2 = st.columns(2)
-
-        with col1:
-            fig = px.pie(
-                df,
-                names="Occupancy",
-                title="Status Occupancy (0 = Kosong, 1 = Terisi)"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        with col2:
-            fig = px.pie(
-                df,
-                values="Light",
-                names="Occupancy",
-                title="Distribusi Cahaya terhadap Occupancy"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-
-        # ===== HISTOGRAM =====
-        fig = px.histogram(
-            df,
-            x="Temperature",
-            nbins=30,
-            title="Distribusi Temperature"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # ===== SCATTER =====
-        fig = px.scatter(
-            df,
-            x="CO2",
-            y="Humidity",
-            color="Occupancy",
-            title="CO2 vs Humidity"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # ===== BOX PLOT =====
-        fig = px.box(
-            df,
-            x="Occupancy",
-            y="Temperature",
-            title="Distribusi Temperature berdasarkan Occupancy"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # ===== LINE CHART =====
-        df_time = df.copy()
-        df_time["date"] = pd.to_datetime(df_time["date"])
-
-        occupancy_time = (
-            df_time.groupby(df_time["date"].dt.hour)["Occupancy"]
-            .mean()
-            .reset_index()
-        )
-
-        fig = px.line(
-            occupancy_time,
-            x="date",
-            y="Occupancy",
-            title="Rata-rata Occupancy berdasarkan Jam"
-        )
-        st.plotly_chart(fig, use_container_width=True)
 
     # =========================================================
     # 🏥 DATASET KESEHATAN – MATERNAL HEALTH
     # =========================================================
-    elif dataset_type == "Kesehatan":
+    if dataset_type == "Kesehatan":
 
         st.subheader("🏥 Dashboard Kesehatan – Maternal Health Risk")
+
+        st.markdown(
+            """
+            Dashboard ini bertujuan untuk menganalisis kondisi kesehatan ibu hamil 
+            berdasarkan indikator medis seperti tekanan darah, kadar gula darah, 
+            suhu tubuh, dan detak jantung. Visualisasi digunakan untuk mengidentifikasi 
+            distribusi tingkat risiko serta karakteristik pasien dengan risiko rendah, 
+            sedang, dan tinggi.
+            """
+        )
 
         total_data = df.shape[0]
         high_risk = (df["RiskLevel"] == "high risk").sum()
@@ -144,9 +95,9 @@ def dashboard_page():
 
         st.dataframe(df.head(), use_container_width=True)
 
-        # ===== PIE CHART =====
         col1, col2 = st.columns(2)
 
+        # ===== PIE CHART =====
         with col1:
             fig = px.pie(
                 df,
@@ -154,6 +105,17 @@ def dashboard_page():
                 title="Distribusi Risk Level"
             )
             st.plotly_chart(fig, use_container_width=True)
+
+            st.markdown(
+                """
+                **Interpretasi Distribusi Risk Level:**
+
+                Distribusi Risk Level menunjukkan bahwa mayoritas pasien berada pada kategori 
+                risiko rendah dan sedang. Namun, terdapat proporsi yang cukup signifikan pada 
+                kategori risiko tinggi. Hal ini menandakan pentingnya deteksi dini terhadap 
+                ibu hamil yang berisiko tinggi guna mencegah terjadinya komplikasi kehamilan.
+                """
+            )
 
         with col2:
             fig = px.pie(
@@ -183,6 +145,17 @@ def dashboard_page():
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        st.markdown(
+            """
+            **Interpretasi Tekanan Darah Sistolik vs Diastolik:**
+
+            Grafik scatter menunjukkan bahwa pasien dengan kategori risiko tinggi 
+            cenderung memiliki nilai tekanan darah sistolik dan diastolik yang lebih tinggi 
+            dibandingkan pasien dengan risiko rendah dan sedang. Pola ini mengindikasikan 
+            bahwa tekanan darah merupakan faktor penting dalam penentuan risiko kesehatan maternal.
+            """
+        )
+
         # ===== BOX PLOT =====
         fig = px.box(
             df,
@@ -191,6 +164,17 @@ def dashboard_page():
             title="Distribusi Blood Sugar berdasarkan Risk Level"
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+            """
+            **Interpretasi Blood Sugar berdasarkan Risk Level:**
+
+            Pasien dengan kategori risiko tinggi memiliki median dan rentang kadar gula darah 
+            yang lebih besar dibandingkan kategori risiko lainnya. Hal ini menunjukkan adanya 
+            hubungan antara peningkatan kadar gula darah dengan meningkatnya risiko kesehatan 
+            pada ibu hamil.
+            """
+        )
 
         # ===== LINE CHART =====
         age_risk = df.groupby(
@@ -205,3 +189,14 @@ def dashboard_page():
             title="Distribusi Risiko berdasarkan Umur"
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+            """
+            **Interpretasi Risiko berdasarkan Umur:**
+
+            Distribusi risiko berdasarkan umur menunjukkan bahwa kategori risiko tinggi 
+            cenderung meningkat pada kelompok usia tertentu. Hal ini mengindikasikan bahwa 
+            faktor usia berperan dalam peningkatan risiko kesehatan maternal, terutama pada 
+            usia kehamilan yang lebih matang.
+            """
+        )
