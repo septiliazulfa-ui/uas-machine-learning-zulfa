@@ -97,7 +97,7 @@ def dashboard_page():
 
         col1, col2 = st.columns(2)
 
-        # ===== PIE CHART =====
+        # ===== PIE CHART: RISK LEVEL =====
         with col1:
             fig = px.pie(
                 df,
@@ -117,6 +117,7 @@ def dashboard_page():
                 """
             )
 
+        # ===== PIE CHART: HEART RATE =====
         with col2:
             fig = px.pie(
                 df,
@@ -126,7 +127,19 @@ def dashboard_page():
             )
             st.plotly_chart(fig, use_container_width=True)
 
-        # ===== HISTOGRAM =====
+            st.markdown(
+                """
+                **Interpretasi Heart Rate berdasarkan Risk Level:**
+
+                Diagram pie menunjukkan bahwa kontribusi detak jantung paling besar 
+                terdapat pada kategori risiko rendah dan sedang. Namun, kategori 
+                risiko tinggi tetap memiliki proporsi yang signifikan. Hal ini 
+                mengindikasikan bahwa ketidakstabilan detak jantung dapat menjadi 
+                indikator pendukung dalam penilaian risiko kesehatan maternal.
+                """
+            )
+
+        # ===== HISTOGRAM UMUR =====
         fig = px.histogram(
             df,
             x="Age",
@@ -134,6 +147,18 @@ def dashboard_page():
             title="Distribusi Umur Pasien"
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown(
+            """
+            **Interpretasi Distribusi Umur Pasien:**
+
+            Histogram menunjukkan bahwa sebagian besar pasien berada pada rentang 
+            usia muda hingga dewasa awal. Jumlah pasien cenderung menurun seiring 
+            bertambahnya usia. Hal ini mengindikasikan bahwa kehamilan lebih banyak 
+            terjadi pada usia produktif, namun risiko kesehatan tetap perlu 
+            diperhatikan pada kelompok usia yang lebih tua.
+            """
+        )
 
         # ===== SCATTER =====
         fig = px.scatter(
@@ -151,8 +176,8 @@ def dashboard_page():
 
             Grafik scatter menunjukkan bahwa pasien dengan kategori risiko tinggi 
             cenderung memiliki nilai tekanan darah sistolik dan diastolik yang lebih tinggi 
-            dibandingkan pasien dengan risiko rendah dan sedang. Pola ini mengindikasikan 
-            bahwa tekanan darah merupakan faktor penting dalam penentuan risiko kesehatan maternal.
+            dibandingkan pasien dengan risiko rendah dan sedang. Hal ini menegaskan bahwa 
+            tekanan darah merupakan faktor penting dalam penentuan risiko kesehatan maternal.
             """
         )
 
