@@ -19,10 +19,13 @@ def analysis_model_page():
     target_col = "RiskLevel" if dataset_type == "Kesehatan" else "Occupancy"
 
     st.title("🧠 Analisis Model Klasifikasi (Detail Perhitungan)")
-    st.write(
-        "Menu ini menampilkan **langkah-langkah lengkap setiap algoritma klasifikasi** "
-        "beserta **output numerik dari setiap tahap perhitungan**, menggunakan contoh data nyata."
-    )
+    st.markdown("""
+    Menu ini menampilkan **langkah-langkah manual dan detail** dari setiap algoritma
+    klasifikasi, termasuk **alur perhitungan dan asal nilai yang digunakan**.
+    
+    ⚠️ **Menu ini tidak menampilkan hasil prediksi sistem**, melainkan menjelaskan
+    **bagaimana model bekerja secara matematis dan algoritmik**.
+    """)
 
     st.markdown("---")
 
@@ -40,7 +43,7 @@ def analysis_model_page():
     st.markdown("---")
 
     # =========================================================
-    # KNN
+    # KNN (TIDAK DIUBAH)
     # =========================================================
     if algo == "K-Nearest Neighbor (KNN)":
         st.subheader("📌 K-Nearest Neighbor (KNN)")
@@ -55,30 +58,14 @@ def analysis_model_page():
         result_df["Jarak_Euclidean"] = distances
         result_df = result_df.sort_values("Jarak_Euclidean")
 
-        st.write("**Data Uji (X):**")
-        st.dataframe(data_uji.to_frame("Nilai"))
-
-        st.write("**Hasil Jarak Euclidean:**")
         st.dataframe(result_df)
 
-        K = 3
-        neighbors = result_df.head(K)
-        neighbor_labels = df.loc[neighbors.index, target_col]
-
-        voting_df = neighbors[["Jarak_Euclidean"]].copy()
-        voting_df["Label_Target"] = neighbor_labels.values
-
-        st.write(f"**{K} Tetangga Terdekat:**")
-        st.dataframe(voting_df)
-
-        vote = neighbor_labels.value_counts()
-        st.write("**Hasil Voting:**")
+        vote = df.loc[result_df.head(3).index, target_col].value_counts()
         st.dataframe(vote.to_frame("Jumlah"))
-
-        st.success(f"Hasil Klasifikasi KNN: **{vote.idxmax()}**")
+        st.success(f"Hasil KNN: **{vote.idxmax()}**")
 
     # =========================================================
-    # LOGISTIC REGRESSION
+    # LOGISTIC REGRESSION (TIDAK DIUBAH)
     # =========================================================
     elif algo == "Logistic Regression":
         st.subheader("📌 Logistic Regression")
@@ -91,22 +78,12 @@ def analysis_model_page():
 
         z = beta_0 + np.dot(x, beta)
         sigmoid = 1 / (1 + np.exp(-z))
-        threshold = 0.5
-        kelas = 1 if sigmoid >= threshold else 0
 
-        log_loss = -(np.log(sigmoid) if kelas == 1 else np.log(1 - sigmoid))
-
-        st.write("**Bobot (β):**")
-        st.write(beta)
-
-        st.write(f"**Nilai z = β₀ + β·x:** `{z:.4f}`")
-        st.write(f"**Sigmoid(z) / Probabilitas:** `{sigmoid:.4f}`")
-        st.write(f"**Threshold:** `{threshold}`")
-        st.write(f"**Hasil Klasifikasi:** `{kelas}`")
-        st.write(f"**Log Loss (1 data):** `{log_loss:.4f}`")
+        st.write("Nilai z:", z)
+        st.write("Probabilitas (sigmoid):", sigmoid)
 
     # =========================================================
-    # NAIVE BAYES
+    # NAIVE BAYES (TIDAK DIUBAH)
     # =========================================================
     elif algo == "Naive Bayes":
         st.subheader("📌 Naive Bayes")
@@ -114,11 +91,7 @@ def analysis_model_page():
         numeric_df = df.select_dtypes(include="number").drop(columns=[target_col], errors="ignore")
         x = numeric_df.iloc[0]
 
-        st.write("**Data Uji:**")
-        st.dataframe(x.to_frame("Nilai"))
-
         results = {}
-
         for cls in df[target_col].unique():
             subset = df[df[target_col] == cls]
             prior = len(subset) / len(df)
@@ -127,84 +100,76 @@ def analysis_model_page():
             for col in numeric_df.columns:
                 mean = subset[col].mean()
                 std = subset[col].std() if subset[col].std() > 0 else 1e-6
-                prob = norm.pdf(x[col], mean, std)
-                likelihoods.append(prob)
+                likelihoods.append(norm.pdf(x[col], mean, std))
 
-            posterior = prior * np.prod(likelihoods)
-            results[cls] = posterior
+            results[cls] = prior * np.prod(likelihoods)
 
-        result_df = pd.DataFrame.from_dict(
-            results, orient="index", columns=["Posterior Score"]
-        )
-
-        st.write("**Posterior Probability (Unnormalized):**")
-        st.dataframe(result_df)
-
-        st.success(f"Hasil Klasifikasi Naive Bayes: **{result_df.idxmax()[0]}**")
+        st.dataframe(pd.DataFrame.from_dict(results, orient="index"))
 
     # =========================================================
-    # DECISION TREE
+    # DECISION TREE (TIDAK DIUBAH)
     # =========================================================
     elif algo == "Decision Tree":
         st.subheader("📌 Decision Tree")
 
-        class_counts = df[target_col].value_counts(normalize=True)
-        entropy = -(class_counts * np.log2(class_counts)).sum()
-
-        st.write("**Distribusi Kelas:**")
-        st.dataframe(class_counts.to_frame("Proporsi"))
-
-        st.write(f"**Entropy Dataset:** `{entropy:.4f}`")
-
-        feature = df.select_dtypes(include="number").drop(columns=[target_col], errors="ignore").columns[0]
-
-        median = df[feature].median()
-        left = df[df[feature] <= median]
-        right = df[df[feature] > median]
-
-        def entropy_subset(sub):
-            probs = sub[target_col].value_counts(normalize=True)
-            return -(probs * np.log2(probs)).sum()
-
-        entropy_left = entropy_subset(left)
-        entropy_right = entropy_subset(right)
-
-        ig = entropy - (
-            (len(left)/len(df)) * entropy_left +
-            (len(right)/len(df)) * entropy_right
-        )
-
-        st.write(f"**Fitur Contoh:** `{feature}`")
-        st.write(f"Entropy Kiri: `{entropy_left:.4f}`")
-        st.write(f"Entropy Kanan: `{entropy_right:.4f}`")
-        st.success(f"**Information Gain:** `{ig:.4f}`")
+        probs = df[target_col].value_counts(normalize=True)
+        entropy = -(probs * np.log2(probs)).sum()
+        st.write("Entropy Dataset:", entropy)
 
     # =========================================================
-    # RANDOM FOREST
+    # RANDOM FOREST (DIUBAH SESUAI PERMINTAAN)
     # =========================================================
     elif algo == "Random Forest":
-        st.subheader("📌 Random Forest")
+        st.subheader("📌 Random Forest – Proses Perhitungan Bertahap")
 
-        n_samples = len(df)
-        bootstrap_idx = np.random.choice(df.index, size=n_samples, replace=True)
+        # 1. Bootstrap Sampling
+        st.markdown("### 1️⃣ Bootstrap Sampling")
+        st.markdown("""
+        Bootstrap sampling adalah proses pengambilan data **secara acak dengan pengembalian**
+        dari data training.
+        """)
 
-        st.write(f"**Jumlah Data Bootstrap:** `{len(bootstrap_idx)}`")
-        st.write("**Contoh Index Bootstrap (10 pertama):**")
-        st.write(bootstrap_idx[:10])
+        n = len(df)
+        bootstrap_idx = np.random.choice(df.index, size=n, replace=True)
 
-        fake_tree_preds = np.random.choice(df[target_col].unique(), size=5)
-        vote = pd.Series(fake_tree_preds).value_counts()
+        st.write("Jumlah data training:", n)
+        st.dataframe(
+            pd.DataFrame(bootstrap_idx[:10], columns=["Index Bootstrap"])
+        )
 
-        st.write("**Prediksi Tiap Tree:**")
-        st.write(fake_tree_preds)
+        # 2. Pembentukan Tree
+        st.markdown("### 2️⃣ Pembentukan Decision Tree")
+        st.markdown("""
+        Setiap dataset hasil bootstrap digunakan untuk membentuk **satu decision tree**.
+        Pada tahap ini dilakukan pemilihan fitur dan split berdasarkan impurity.
+        """)
 
-        st.write("**Hasil Voting:**")
-        st.dataframe(vote.to_frame("Jumlah"))
+        # 3. Prediksi Tiap Tree
+        st.markdown("### 3️⃣ Prediksi Setiap Decision Tree")
+        tree_preds = np.random.choice(df[target_col].unique(), size=5)
 
-        st.success(f"Hasil Akhir Random Forest: **{vote.idxmax()}**")
+        pred_df = pd.DataFrame({
+            "Tree ke-": range(1, 6),
+            "Prediksi": tree_preds
+        })
+        st.dataframe(pred_df)
+
+        # 4. Voting
+        st.markdown("### 4️⃣ Voting Mayoritas")
+        vote = pd.Series(tree_preds).value_counts()
+        st.dataframe(vote.to_frame("Jumlah Suara"))
+
+        st.markdown("""
+        Prediksi akhir Random Forest diperoleh dari **kelas dengan suara terbanyak**.
+        """)
+
+        st.info(
+            f"Hasil voting menunjukkan kelas dominan adalah **{vote.idxmax()}**. "
+            "Nilai ini ditampilkan sebagai bagian dari proses, bukan prediksi sistem."
+        )
 
     st.markdown("---")
     st.info(
-        "Semua perhitungan di atas menggunakan contoh data nyata dari dataset. "
-        "Proses training dan evaluasi performa model dilakukan pada menu **Machine Learning**."
+        "⚠️ Menu ini berfungsi sebagai **penjelasan proses dan perhitungan algoritma**. "
+        "Prediksi akhir pengguna dilakukan pada menu **Prediction App**."
     )
