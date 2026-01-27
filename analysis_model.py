@@ -132,9 +132,12 @@ def analysis_model_page():
         st.latex(r"p_i = \frac{n_i}{N}")
 
         # =========================
-        # LANGKAH 3: SUBSTITUSI & p_i
+        # LANGKAH 3: SUBSTITUSI & p_i (REVISI)
         # =========================
         st.markdown("### 🔹 Langkah 3: Substitusi Angka & Perhitungan $p_i$")
+
+        # Rumus probabilitas ditampilkan TERPISAH
+        st.latex(r"p_i = \frac{n_i}{N}")
 
         prob_rows = []
         for cls, ni in class_counts.items():
@@ -142,7 +145,6 @@ def analysis_model_page():
             prob_rows.append([
                 cls,
                 ni,
-                r"$p_i = \frac{n_i}{N}$",
                 f"{ni}/{N}",
                 round(pi, 4)
             ])
@@ -152,7 +154,6 @@ def analysis_model_page():
             columns=[
                 "Kelas",
                 "Jumlah Data (nᵢ)",
-                "Rumus Matematis",
                 "Substitusi Angka",
                 "Nilai pᵢ"
             ]
@@ -215,3 +216,4 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Fokus menu ini adalah **proses matematis**, bukan hasil akhir.")
+
