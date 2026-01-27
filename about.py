@@ -64,12 +64,4 @@ def show_about():
     st.subheader("🔍 Contoh Data")
     st.dataframe(df.head(), use_container_width=True)
 
-    # =========================
-    # CATATAN KHUSUS
-    # =========================
-    st.info(
-        "Catatan:\n"
-        "- Dataset ini bersifat **dinamis**, menyesuaikan file yang di-upload.\n"
-        "- Identifikasi fitur numerik dan kategorik dilakukan otomatis.\n"
-        "- Target klasifikasi akan digunakan pada menu **Machine Learning**."
-    )
+
