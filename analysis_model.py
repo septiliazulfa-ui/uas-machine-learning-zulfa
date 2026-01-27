@@ -85,27 +85,105 @@ def analysis_model_page():
         }))
 
         st.markdown("---")
-
+        
         # ==================================================
-        # 2. ENTROPY DATASET AWAL
+        # 2. PEMBENTUKAN DECISION TREE (ENTROPY — FULL PROSES)
         # ==================================================
-        st.markdown("## ② Pembentukan Decision Tree (Entropy Awal)")
+        st.markdown("## ② Pembentukan Decision Tree")
 
+        st.markdown("""
+        Setelah dataset bootstrap terbentuk, decision tree dibangun dengan
+        memilih split terbaik berdasarkan **entropy**.
+        """)
+
+        # 🔹 RUMUS ENTROPY
         st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
 
-        class_counts = df[target_col].value_counts()
+        st.markdown("""
+        **Keterangan simbol:**
+        - \(S\) : dataset
+        - \(c\) : jumlah kelas
+        - \(p_i\) : probabilitas kelas ke-\(i\)
+        """)
+
+        # =========================
+        # LANGKAH 1: JUMLAH DATA PER KELAS
+        # =========================
+        st.markdown("### 🔹 Langkah 1: Jumlah Data per Kelas")
+
+        class_counts = df[target_col].value_counts().sort_index()
         N = class_counts.sum()
-        p = class_counts / N
 
-        entropy_S = -(p * np.log2(p)).sum()
-
-        st.dataframe(pd.DataFrame({
+        df_count = pd.DataFrame({
             "Kelas": class_counts.index,
-            "Jumlah Data (nᵢ)": class_counts.values,
-            "pᵢ": p.round(4)
-        }))
+            "Jumlah Data (nᵢ)": class_counts.values
+        })
 
-        st.latex(rf"Entropy(S) = {round(entropy_S,4)}")
+        st.dataframe(df_count, use_container_width=True)
+        st.latex(rf"N = {N}")
+
+        # =========================
+        # LANGKAH 2: RUMUS PROBABILITAS
+        # =========================
+        st.markdown("### 🔹 Langkah 2: Rumus Probabilitas")
+
+        st.latex(r"p_i = \frac{n_i}{N}")
+
+        # =========================
+        # LANGKAH 3: SUBSTITUSI & p_i (REVISI)
+        # =========================
+        st.markdown("### 🔹 Langkah 3: Substitusi Angka & Perhitungan $p_i$")
+
+        # Rumus probabilitas ditampilkan TERPISAH
+        st.latex(r"p_i = \frac{n_i}{N}")
+
+        prob_rows = []
+        for cls, ni in class_counts.items():
+            pi = ni / N
+            prob_rows.append([
+                cls,
+                ni,
+                f"{ni}/{N}",
+                round(pi, 4)
+             ])
+
+        df_prob = pd.DataFrame(
+            prob_rows,
+            columns=[
+                "Kelas",
+                "Jumlah Data (nᵢ)",
+                "Substitusi Angka",
+                "Nilai pᵢ"
+            ]
+        )
+
+        st.dataframe(df_prob, use_container_width=True)
+
+        # =========================
+        # LANGKAH 4: SUBSTITUSI ENTROPY
+        # =========================
+        st.markdown("### 🔹 Langkah 4: Substitusi ke Rumus Entropy")
+
+        entropy_value = 0
+        subs = []
+
+        for pi in df_prob["Nilai pᵢ"]:
+            subs.append(f"{pi} \\log_2({pi})")
+            entropy_value += -pi * np.log2(pi)
+
+        st.latex(
+            r"Entropy(S) = -(" + " + ".join(subs) + ")"
+        )
+
+        st.latex(
+            r"Entropy(S) = " + str(round(entropy_value, 4))
+        )
+
+        st.markdown("""
+        **Interpretasi:**  
+        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas
+        sebelum dilakukan split pada decision tree.
+        """)
 
         st.markdown("---")
 
@@ -217,3 +295,4 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
