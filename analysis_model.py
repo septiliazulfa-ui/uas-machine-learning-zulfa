@@ -42,7 +42,7 @@ def analysis_model_page():
     st.markdown("---")
 
     # =========================================================
-    # RANDOM FOREST (FULL PROSES + NARASI + RUMUS)
+    # RANDOM FOREST
     # =========================================================
     if algo == "Random Forest":
 
@@ -51,9 +51,6 @@ def analysis_model_page():
         st.markdown("""
         Random Forest merupakan algoritma **ensemble learning** yang membangun
         banyak decision tree dan menggabungkan hasilnya melalui **voting mayoritas**.
-        
-        Pada bagian ini ditampilkan **proses matematis lengkap**, mulai dari
-        bootstrap sampling hingga voting, **tanpa menampilkan hasil prediksi akhir**.
         """)
 
         st.markdown("---")
@@ -66,12 +63,6 @@ def analysis_model_page():
         n_trees = st.slider("Jumlah Decision Tree (T)", 3, 20, 5)
         sample_ratio = st.slider("Persentase Data Bootstrap (%)", 50, 100, 100)
 
-        st.markdown("""
-        Parameter di atas mengatur:
-        - Jumlah decision tree yang dibangun
-        - Proporsi data training yang diambil untuk setiap bootstrap
-        """)
-
         st.markdown("---")
 
         # ==================================================
@@ -79,31 +70,13 @@ def analysis_model_page():
         # ==================================================
         st.markdown("## ① Bootstrap Sampling")
 
-        st.markdown("""
-        Tahap bootstrap sampling bertujuan untuk membentuk dataset training baru
-        dengan cara mengambil data **secara acak dengan pengembalian (with replacement)**.
-        Dataset ini akan digunakan untuk membangun masing-masing decision tree.
-        """)
-
-        st.latex(r"D^* = \{x_i^* \mid x_i^* \sim D,\ i = 1,2,\dots,n\}")
-
-        st.markdown("""
-        **Keterangan simbol:**
-        - \(D\) : dataset training asli  
-        - \(D^*\) : dataset hasil bootstrap  
-        - \(x_i^*\) : sampel hasil pengambilan acak  
-        - \(n\) : jumlah data bootstrap  
-        """)
+        st.latex(r"D^* = \{x_i^* \mid x_i^* \sim D\}")
 
         n = int(len(df) * sample_ratio / 100)
-
-        st.markdown("**Perhitungan jumlah data bootstrap:**")
         st.latex(rf"n = {sample_ratio}\% \times {len(df)} = {n}")
 
         np.random.seed(42)
         bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
-
-        st.markdown("**Contoh 10 langkah pertama proses bootstrap:**")
 
         step_table = pd.DataFrame({
             "Langkah ke-": range(1, 11),
@@ -113,45 +86,104 @@ def analysis_model_page():
 
         st.dataframe(step_table)
 
-        st.markdown("""
-        **Interpretasi:**  
-        Karena sampling dilakukan dengan pengembalian, satu data dapat terpilih
-        lebih dari satu kali dalam dataset bootstrap.
-        """)
-
         st.markdown("---")
 
         # ==================================================
-        # 2. PEMBENTUKAN DECISION TREE
+        # 2. PEMBENTUKAN DECISION TREE (ENTROPY — FULL PROSES)
         # ==================================================
         st.markdown("## ② Pembentukan Decision Tree")
 
         st.markdown("""
-        Setelah dataset bootstrap terbentuk, langkah selanjutnya adalah membangun
-        **decision tree**. Pemilihan split pada tree dilakukan dengan mengukur
-        tingkat ketidakpastian data menggunakan **entropy**.
+        Setelah dataset bootstrap terbentuk, decision tree dibangun dengan
+        memilih split terbaik berdasarkan **entropy**.
         """)
 
+        # 🔹 RUMUS ENTROPY
         st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
 
-        class_prop = df[target_col].value_counts(normalize=True)
+        st.markdown("""
+        **Keterangan simbol:**
+        - \(S\) : dataset
+        - \(c\) : jumlah kelas
+        - \(p_i\) : probabilitas kelas ke-\(i\)
+        """)
 
-        st.markdown("**Proporsi kelas pada dataset:**")
-        st.dataframe(class_prop.to_frame("pᵢ"))
+        # =========================
+        # LANGKAH 1: JUMLAH DATA PER KELAS
+        # =========================
+        st.markdown("### 🔹 Langkah 1: Jumlah Data per Kelas")
 
-        subs = " + ".join(
-            [f"{p:.4f} \\log_2({p:.4f})" for p in class_prop.values]
+        class_counts = df[target_col].value_counts().sort_index()
+        N = class_counts.sum()
+
+        df_count = pd.DataFrame({
+            "Kelas": class_counts.index,
+            "Jumlah Data (nᵢ)": class_counts.values
+        })
+
+        st.dataframe(df_count, use_container_width=True)
+        st.latex(rf"N = {N}")
+
+        # =========================
+        # LANGKAH 2: RUMUS PROBABILITAS
+        # =========================
+        st.markdown("### 🔹 Langkah 2: Rumus Probabilitas")
+
+        st.latex(r"p_i = \frac{n_i}{N}")
+
+        # =========================
+        # LANGKAH 3: SUBSTITUSI & p_i
+        # =========================
+        st.markdown("### 🔹 Langkah 3: Substitusi Angka & Perhitungan $p_i$")
+
+        prob_rows = []
+        for cls, ni in class_counts.items():
+            pi = ni / N
+            prob_rows.append([
+                cls,
+                ni,
+                r"$p_i = \frac{n_i}{N}$",
+                f"{ni}/{N}",
+                round(pi, 4)
+            ])
+
+        df_prob = pd.DataFrame(
+            prob_rows,
+            columns=[
+                "Kelas",
+                "Jumlah Data (nᵢ)",
+                "Rumus Matematis",
+                "Substitusi Angka",
+                "Nilai pᵢ"
+            ]
         )
 
-        entropy_val = -(class_prop * np.log2(class_prop)).sum()
+        st.dataframe(df_prob, use_container_width=True)
 
-        st.markdown("**Substitusi nilai ke dalam rumus entropy:**")
-        st.latex(rf"Entropy(S) = -({subs}) = {entropy_val:.4f}")
+        # =========================
+        # LANGKAH 4: SUBSTITUSI ENTROPY
+        # =========================
+        st.markdown("### 🔹 Langkah 4: Substitusi ke Rumus Entropy")
+
+        entropy_value = 0
+        subs = []
+
+        for pi in df_prob["Nilai pᵢ"]:
+            subs.append(f"{pi} \\log_2({pi})")
+            entropy_value += -pi * np.log2(pi)
+
+        st.latex(
+            r"Entropy(S) = -(" + " + ".join(subs) + ")"
+        )
+
+        st.latex(
+            r"Entropy(S) = " + str(round(entropy_value, 4))
+        )
 
         st.markdown("""
         **Interpretasi:**  
-        Nilai entropy menunjukkan tingkat ketidakpastian data sebelum dilakukan split.
-        Semakin besar nilai entropy, semakin tidak homogen distribusi kelasnya.
+        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas
+        sebelum dilakukan split pada decision tree.
         """)
 
         st.markdown("---")
@@ -161,27 +193,14 @@ def analysis_model_page():
         # ==================================================
         st.markdown("## ③ Prediksi Tiap Decision Tree")
 
-        st.markdown("""
-        Setiap decision tree yang terbentuk menghasilkan **satu prediksi kelas**
-        berdasarkan struktur pohonnya masing-masing.
-        """)
-
         st.latex(r"\hat{y}_1, \hat{y}_2, \dots, \hat{y}_T")
 
         fake_preds = np.random.choice(df[target_col].unique(), size=n_trees)
 
-        pred_table = pd.DataFrame({
+        st.dataframe(pd.DataFrame({
             "Tree ke-": range(1, n_trees + 1),
             "Prediksi": fake_preds
-        })
-
-        st.dataframe(pred_table)
-
-        st.markdown("""
-        **Interpretasi:**  
-        Karena setiap tree dibangun dari dataset yang berbeda, hasil prediksi
-        antar tree dapat bervariasi.
-        """)
+        }))
 
         st.markdown("---")
 
@@ -190,32 +209,9 @@ def analysis_model_page():
         # ==================================================
         st.markdown("## ④ Voting Mayoritas")
 
-        st.markdown("""
-        Tahap terakhir adalah menggabungkan seluruh prediksi decision tree
-        menggunakan metode **voting mayoritas**.
-        """)
-
         st.latex(r"\hat{y} = \arg\max_c \sum_{t=1}^{T} I(\hat{y}_t = c)")
 
-        st.markdown("""
-        **Keterangan simbol:**
-        - \(T\) : jumlah decision tree  
-        - \(\hat{y}_t\) : prediksi dari tree ke-\(t\)  
-        - \(I(\cdot)\) : fungsi indikator  
-        """)
-
         vote = pd.Series(fake_preds).value_counts()
-
-        st.markdown("**Perhitungan jumlah suara untuk setiap kelas:**")
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
-        st.markdown("""
-        **Interpretasi:**  
-        Kelas dengan jumlah suara terbanyak akan dipilih sebagai hasil voting.
-        Pada menu ini, hasil akhir **tidak ditampilkan** karena fokus pada proses.
-        """)
-
-        st.info(
-            "Menu ini menampilkan **alur matematis Random Forest secara lengkap**. "
-            "Prediksi akhir dapat dilihat pada menu **Prediction App**."
-        )
+        st.info("Fokus menu ini adalah **proses matematis**, bukan hasil akhir.")
