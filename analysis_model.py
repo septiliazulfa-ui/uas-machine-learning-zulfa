@@ -78,121 +78,122 @@ def analysis_model_page():
         np.random.seed(42)
         bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
 
-        step_table = pd.DataFrame({
+        st.dataframe(pd.DataFrame({
             "Langkah ke-": range(1, 11),
             "Index Terpilih": bootstrap_indices[:10],
             "With Replacement": ["Ya"] * 10
-        })
-
-        st.dataframe(step_table)
+        }))
 
         st.markdown("---")
 
         # ==================================================
-        # 2. PEMBENTUKAN DECISION TREE (ENTROPY — FULL PROSES)
+        # 2. ENTROPY DATASET AWAL
         # ==================================================
-        st.markdown("## ② Pembentukan Decision Tree")
+        st.markdown("## ② Pembentukan Decision Tree (Entropy Awal)")
 
-        st.markdown("""
-        Setelah dataset bootstrap terbentuk, decision tree dibangun dengan
-        memilih split terbaik berdasarkan **entropy**.
-        """)
-
-        # 🔹 RUMUS ENTROPY
         st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
 
+        class_counts = df[target_col].value_counts()
+        N = class_counts.sum()
+        p = class_counts / N
+
+        entropy_S = -(p * np.log2(p)).sum()
+
+        st.dataframe(pd.DataFrame({
+            "Kelas": class_counts.index,
+            "Jumlah Data (nᵢ)": class_counts.values,
+            "pᵢ": p.round(4)
+        }))
+
+        st.latex(rf"Entropy(S) = {round(entropy_S,4)}")
+
+        st.markdown("---")
+
+        # ==================================================
+        # 3. SPLIT DATA (MANUAL)
+        # ==================================================
+        st.markdown("## ③ Proses Split Data (Manual)")
+
         st.markdown("""
-        **Keterangan simbol:**
-        - \(S\) : dataset
-        - \(c\) : jumlah kelas
-        - \(p_i\) : probabilitas kelas ke-\(i\)
+        Pada tahap ini, user memilih **satu fitur dan satu nilai threshold**
+        untuk mensimulasikan proses split pada decision tree.
         """)
 
-        # =========================
-        # LANGKAH 1: JUMLAH DATA PER KELAS
-        # =========================
-        st.markdown("### 🔹 Langkah 1: Jumlah Data per Kelas")
+        numeric_features = df.select_dtypes(include="number").columns.drop(target_col, errors="ignore")
 
-        class_counts = df[target_col].value_counts().sort_index()
-        N = class_counts.sum()
+        split_feature = st.selectbox("Pilih fitur untuk split", numeric_features)
 
-        df_count = pd.DataFrame({
-            "Kelas": class_counts.index,
-            "Jumlah Data (nᵢ)": class_counts.values
-        })
+        min_val = float(df[split_feature].min())
+        max_val = float(df[split_feature].max())
 
-        st.dataframe(df_count, use_container_width=True)
-        st.latex(rf"N = {N}")
-
-        # =========================
-        # LANGKAH 2: RUMUS PROBABILITAS
-        # =========================
-        st.markdown("### 🔹 Langkah 2: Rumus Probabilitas")
-
-        st.latex(r"p_i = \frac{n_i}{N}")
-
-        # =========================
-        # LANGKAH 3: SUBSTITUSI & p_i (REVISI)
-        # =========================
-        st.markdown("### 🔹 Langkah 3: Substitusi Angka & Perhitungan $p_i$")
-
-        # Rumus probabilitas ditampilkan TERPISAH
-        st.latex(r"p_i = \frac{n_i}{N}")
-
-        prob_rows = []
-        for cls, ni in class_counts.items():
-            pi = ni / N
-            prob_rows.append([
-                cls,
-                ni,
-                f"{ni}/{N}",
-                round(pi, 4)
-            ])
-
-        df_prob = pd.DataFrame(
-            prob_rows,
-            columns=[
-                "Kelas",
-                "Jumlah Data (nᵢ)",
-                "Substitusi Angka",
-                "Nilai pᵢ"
-            ]
+        threshold = st.slider(
+            "Pilih nilai threshold",
+            min_value=min_val,
+            max_value=max_val,
+            value=(min_val + max_val) / 2
         )
 
-        st.dataframe(df_prob, use_container_width=True)
+        st.latex(rf"{split_feature} \le {round(threshold,2)}")
 
-        # =========================
-        # LANGKAH 4: SUBSTITUSI ENTROPY
-        # =========================
-        st.markdown("### 🔹 Langkah 4: Substitusi ke Rumus Entropy")
+        left = df[df[split_feature] <= threshold]
+        right = df[df[split_feature] > threshold]
 
-        entropy_value = 0
-        subs = []
+        def entropy_subset(sub):
+            counts = sub[target_col].value_counts()
+            probs = counts / counts.sum()
+            return -(probs * np.log2(probs)).sum()
 
-        for pi in df_prob["Nilai pᵢ"]:
-            subs.append(f"{pi} \\log_2({pi})")
-            entropy_value += -pi * np.log2(pi)
+        entropy_left = entropy_subset(left)
+        entropy_right = entropy_subset(right)
+
+        weighted_entropy = (
+            (len(left)/len(df)) * entropy_left +
+            (len(right)/len(df)) * entropy_right
+        )
+
+        IG = entropy_S - weighted_entropy
+
+        st.markdown("### 🔹 Distribusi Kelas Setelah Split")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**Node Kiri (≤ threshold)**")
+            st.dataframe(left[target_col].value_counts().to_frame("Jumlah"))
+
+        with col2:
+            st.markdown("**Node Kanan (> threshold)**")
+            st.dataframe(right[target_col].value_counts().to_frame("Jumlah"))
+
+        st.markdown("### 🔹 Perhitungan Entropy Setelah Split")
+
+        st.latex(rf"Entropy(S_{{left}}) = {round(entropy_left,4)}")
+        st.latex(rf"Entropy(S_{{right}}) = {round(entropy_right,4)}")
 
         st.latex(
-            r"Entropy(S) = -(" + " + ".join(subs) + ")"
+            rf"""
+            Entropy_{{split}} =
+            \frac{{{len(left)}}}{{{len(df)}}} \times {round(entropy_left,4)}
+            +
+            \frac{{{len(right)}}}{{{len(df)}}} \times {round(entropy_right,4)}
+            = {round(weighted_entropy,4)}
+            """
         )
 
-        st.latex(
-            r"Entropy(S) = " + str(round(entropy_value, 4))
-        )
+        st.latex(rf"IG = {round(entropy_S,4)} - {round(weighted_entropy,4)} = {round(IG,4)}")
 
         st.markdown("""
         **Interpretasi:**  
-        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas
-        sebelum dilakukan split pada decision tree.
+        Semakin besar nilai **Information Gain**, semakin baik fitur dan threshold
+        tersebut digunakan untuk split pada decision tree.
         """)
 
         st.markdown("---")
 
         # ==================================================
-        # 3. PREDIKSI SETIAP DECISION TREE
+        # 4. PREDIKSI TIAP TREE
         # ==================================================
-        st.markdown("## ③ Prediksi Tiap Decision Tree")
+        st.markdown("## ④ Prediksi Tiap Decision Tree")
 
         st.latex(r"\hat{y}_1, \hat{y}_2, \dots, \hat{y}_T")
 
@@ -206,14 +207,13 @@ def analysis_model_page():
         st.markdown("---")
 
         # ==================================================
-        # 4. VOTING MAYORITAS
+        # 5. VOTING MAYORITAS
         # ==================================================
-        st.markdown("## ④ Voting Mayoritas")
+        st.markdown("## ⑤ Voting Mayoritas")
 
         st.latex(r"\hat{y} = \arg\max_c \sum_{t=1}^{T} I(\hat{y}_t = c)")
 
         vote = pd.Series(fake_preds).value_counts()
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
-        st.info("Fokus menu ini adalah **proses matematis**, bukan hasil akhir.")
-
+        st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
