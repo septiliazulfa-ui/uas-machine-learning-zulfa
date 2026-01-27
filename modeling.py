@@ -183,7 +183,5 @@ def modeling_page():
 
     st.session_state["best_model"] = best_model
 
-    st.info(
-        "Model terbaik telah disimpan dan akan digunakan "
-        "pada menu **Prediction App**."
-    )
+
+
