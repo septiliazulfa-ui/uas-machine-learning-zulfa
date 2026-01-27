@@ -1,4 +1,4 @@
-import streamlit as st 
+import streamlit as st
 import pandas as pd
 import numpy as np
 from scipy.stats import norm
@@ -85,70 +85,38 @@ def analysis_model_page():
         }))
 
         st.markdown("---")
-        
-        # ==================================================
-        # 2. PEMBENTUKAN DECISION TREE (ENTROPY — FULL PROSES)
-        # ==================================================
-        st.markdown("## ② Pembentukan Decision Tree")
 
-        st.markdown("""
-        Setelah dataset bootstrap terbentuk, decision tree dibangun dengan
-        memilih split terbaik berdasarkan **entropy**.
-        """)
+        # ==================================================
+        # 2. ENTROPY DATASET AWAL (DENGAN SUBSTITUSI ANGKA)
+        # ==================================================
+        st.markdown("## ② Pembentukan Decision Tree (Entropy Awal)")
 
-        # 🔹 RUMUS ENTROPY
         st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
 
-        st.markdown("""
-        **Keterangan simbol:**
-        - \(S\) : dataset
-        - \(c\) : jumlah kelas
-        - \(p_i\) : probabilitas kelas ke-\(i\)
-        """)
-
-        # =========================
-        # LANGKAH 1: JUMLAH DATA PER KELAS
-        # =========================
-        st.markdown("### 🔹 Langkah 1: Jumlah Data per Kelas")
-
-        class_counts = df[target_col].value_counts().sort_index()
+        # Hitung jumlah data per kelas
+        class_counts = df[target_col].value_counts()
         N = class_counts.sum()
 
-        df_count = pd.DataFrame({
-            "Kelas": class_counts.index,
-            "Jumlah Data (nᵢ)": class_counts.values
-        })
+        rows = []
+        subs_entropy = []
+        entropy_S = 0
 
-        st.dataframe(df_count, use_container_width=True)
-        st.latex(rf"N = {N}")
-
-        # =========================
-        # LANGKAH 2: RUMUS PROBABILITAS
-        # =========================
-        st.markdown("### 🔹 Langkah 2: Rumus Probabilitas")
-
-        st.latex(r"p_i = \frac{n_i}{N}")
-
-        # =========================
-        # LANGKAH 3: SUBSTITUSI & p_i (REVISI)
-        # =========================
-        st.markdown("### 🔹 Langkah 3: Substitusi Angka & Perhitungan $p_i$")
-
-        # Rumus probabilitas ditampilkan TERPISAH
-        st.latex(r"p_i = \frac{n_i}{N}")
-
-        prob_rows = []
         for cls, ni in class_counts.items():
             pi = ni / N
-            prob_rows.append([
+            rows.append([
                 cls,
                 ni,
                 f"{ni}/{N}",
                 round(pi, 4)
-             ])
+            ])
+            subs_entropy.append(
+                rf"\frac{{{ni}}}{{{N}}}\log_2({round(pi,4)})"
+            )
+            entropy_S += -pi * np.log2(pi)
 
-        df_prob = pd.DataFrame(
-            prob_rows,
+        # Tabel detail entropy
+        df_entropy = pd.DataFrame(
+            rows,
             columns=[
                 "Kelas",
                 "Jumlah Data (nᵢ)",
@@ -157,35 +125,24 @@ def analysis_model_page():
             ]
         )
 
-        st.dataframe(df_prob, use_container_width=True)
+        st.dataframe(df_entropy, use_container_width=True)
 
-        # =========================
-        # LANGKAH 4: SUBSTITUSI ENTROPY
-        # =========================
-        st.markdown("### 🔹 Langkah 4: Substitusi ke Rumus Entropy")
-
-        entropy_value = 0
-        subs = []
-
-        for pi in df_prob["Nilai pᵢ"]:
-            subs.append(f"{pi} \\log_2({pi})")
-            entropy_value += -pi * np.log2(pi)
+        # Substitusi ke rumus entropy
+        st.markdown("### 🔹 Substitusi ke Rumus Entropy")
 
         st.latex(
-            r"Entropy(S) = -(" + " + ".join(subs) + ")"
+            r"Entropy(S) = -(" + " + ".join(subs_entropy) + ")"
         )
 
         st.latex(
-            r"Entropy(S) = " + str(round(entropy_value, 4))
+            rf"Entropy(S) = {round(entropy_S,4)}"
         )
 
         st.markdown("""
         **Interpretasi:**  
-        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas
-        sebelum dilakukan split pada decision tree.
+        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas pada dataset awal.
+        Semakin besar entropy, semakin tidak homogen distribusi kelas.
         """)
-
-        st.markdown("---")
 
         # ==================================================
         # 3. SPLIT DATA (MANUAL)
