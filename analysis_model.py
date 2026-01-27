@@ -18,15 +18,13 @@ def analysis_model_page():
 
     target_col = "RiskLevel" if dataset_type == "Kesehatan" else "Occupancy"
 
-    st.title("🧠 Analisis Model Klasifikasi (Detail Proses & Perhitungan)")
+    st.title("🧠 Analisis Model Klasifikasi (Proses & Perhitungan Detail)")
     st.markdown("""
-Menu ini menampilkan **alur proses dan perhitungan manual algoritma klasifikasi**.
-Fokus utama adalah **bagaimana algoritma bekerja secara bertahap**,
-mulai dari rumus hingga proses pengambilan keputusan.
-
-⚠️ **Menu ini tidak menampilkan prediksi akhir sistem.**
-Prediksi final tersedia pada menu **Prediction App**.
-""")
+    Halaman ini menampilkan **alur proses dan perhitungan matematis algoritma klasifikasi**.
+    Fokus utama adalah **bagaimana setiap algoritma bekerja**, bukan sekadar hasil akhir.
+    
+    ⚠️ Prediksi final tersedia pada menu **Prediction App**.
+    """)
 
     st.markdown("---")
 
@@ -44,188 +42,180 @@ Prediksi final tersedia pada menu **Prediction App**.
     st.markdown("---")
 
     # =========================================================
-    # KNN (TIDAK DIUBAH)
+    # RANDOM FOREST (FULL PROSES + NARASI + RUMUS)
     # =========================================================
-    if algo == "K-Nearest Neighbor (KNN)":
-        st.subheader("📌 K-Nearest Neighbor (KNN)")
-        numeric_df = df.select_dtypes(include="number").drop(columns=[target_col], errors="ignore")
-        data_uji = numeric_df.iloc[0]
-        data_latih = numeric_df.iloc[1:6]
-        distances = np.sqrt(((data_latih - data_uji) ** 2).sum(axis=1))
-        result_df = data_latih.copy()
-        result_df["Jarak_Euclidean"] = distances
-        st.dataframe(result_df)
+    if algo == "Random Forest":
 
-    # =========================================================
-    # LOGISTIC REGRESSION (TIDAK DIUBAH)
-    # =========================================================
-    elif algo == "Logistic Regression":
-        st.subheader("📌 Logistic Regression")
-        numeric_df = df.select_dtypes(include="number").drop(columns=[target_col], errors="ignore")
-        x = numeric_df.iloc[0].values
-        beta = np.ones(len(x)) * 0.1
-        beta_0 = 0.1
-        z = beta_0 + np.dot(x, beta)
-        sigmoid = 1 / (1 + np.exp(-z))
-        st.write("z:", z)
-        st.write("Sigmoid:", sigmoid)
+        st.subheader("📌 Random Forest — Proses Lengkap & Bertahap")
 
-    # =========================================================
-    # NAIVE BAYES (TIDAK DIUBAH)
-    # =========================================================
-    elif algo == "Naive Bayes":
-        st.subheader("📌 Naive Bayes")
-        numeric_df = df.select_dtypes(include="number").drop(columns=[target_col], errors="ignore")
-        x = numeric_df.iloc[0]
-        results = {}
-        for cls in df[target_col].unique():
-            subset = df[df[target_col] == cls]
-            prior = len(subset) / len(df)
-            likelihoods = []
-            for col in numeric_df.columns:
-                mean = subset[col].mean()
-                std = subset[col].std() if subset[col].std() > 0 else 1e-6
-                likelihoods.append(norm.pdf(x[col], mean, std))
-            results[cls] = prior * np.prod(likelihoods)
-        st.dataframe(pd.DataFrame.from_dict(results, orient="index"))
-
-    # =========================================================
-    # DECISION TREE (TIDAK DIUBAH)
-    # =========================================================
-    elif algo == "Decision Tree":
-        st.subheader("📌 Decision Tree")
-        class_probs = df[target_col].value_counts(normalize=True)
-        entropy = -(class_probs * np.log2(class_probs)).sum()
-        st.write("Entropy:", entropy)
-
-    # =========================================================
-    # RANDOM FOREST (FULL PROSES – SESUAI PERMINTAAN)
-    # =========================================================
-    elif algo == "Random Forest":
-        st.subheader("📌 Random Forest — Proses Lengkap")
-
-        # =========================
-        # NARASI UMUM
-        # =========================
         st.markdown("""
-Random Forest adalah algoritma **ensemble learning** yang membangun banyak
-**decision tree** dan menggabungkan hasilnya melalui **voting mayoritas**.
+        Random Forest merupakan algoritma **ensemble learning** yang membangun
+        banyak decision tree dan menggabungkan hasilnya melalui **voting mayoritas**.
+        
+        Pada bagian ini ditampilkan **proses matematis lengkap**, mulai dari
+        bootstrap sampling hingga voting, **tanpa menampilkan hasil prediksi akhir**.
+        """)
 
-Pada bagian ini ditampilkan:
-- Rumus yang digunakan
-- Parameter yang dapat diatur pengguna
-- Proses pembentukan model secara bertahap
-""")
+        st.markdown("---")
 
         # =========================
         # PARAMETER USER
         # =========================
-        st.markdown("### ⚙️ Parameter yang Dapat Diatur")
+        st.markdown("### 🔧 Pengaturan Parameter")
 
-        col1, col2, col3 = st.columns(3)
-
-        with col1:
-            n_trees = st.slider("Jumlah Decision Tree", 1, 100, 10)
-
-        with col2:
-            bootstrap_ratio = st.slider("Persentase Data Bootstrap (%)", 50, 100, 100, 10)
-
-        with col3:
-            random_seed = st.number_input("Random Seed", 0, 9999, 42)
-
-        # =========================
-        # BOOTSTRAP SAMPLING
-        # =========================
-        st.markdown("## 1️⃣ Bootstrap Sampling")
-
-        st.latex(r"""
-D^{*} = \{ x_i^{*} \mid x_i^{*} \sim D,\; i = 1,2,\dots,n \}
-""")
+        n_trees = st.slider("Jumlah Decision Tree (T)", 3, 20, 5)
+        sample_ratio = st.slider("Persentase Data Bootstrap (%)", 50, 100, 100)
 
         st.markdown("""
-**Keterangan:**
-- \(D\): dataset training
-- \(D^{*}\): dataset hasil bootstrap
-- \(n\): jumlah data training
-""")
+        Parameter di atas mengatur:
+        - Jumlah decision tree yang dibangun
+        - Proporsi data training yang diambil untuk setiap bootstrap
+        """)
 
-        original_idx = df.index.values
-        st.write("Index data training (contoh):")
-        st.dataframe(pd.DataFrame({"Index": original_idx[:10]}))
+        st.markdown("---")
 
-        np.random.seed(random_seed)
+        # ==================================================
+        # 1. BOOTSTRAP SAMPLING
+        # ==================================================
+        st.markdown("## ① Bootstrap Sampling")
 
-        st.markdown("### 🔁 Proses Pengambilan Sampel (10 langkah pertama)")
-        steps = []
-        for i in range(10):
-            steps.append({
-                "Langkah": i + 1,
-                "Index Terpilih": np.random.choice(original_idx),
-                "With Replacement": "Ya"
-            })
-        st.dataframe(pd.DataFrame(steps))
+        st.markdown("""
+        Tahap bootstrap sampling bertujuan untuk membentuk dataset training baru
+        dengan cara mengambil data **secara acak dengan pengembalian (with replacement)**.
+        Dataset ini akan digunakan untuk membangun masing-masing decision tree.
+        """)
 
-        n_samples = int(len(df) * bootstrap_ratio / 100)
+        st.latex(r"D^* = \{x_i^* \mid x_i^* \sim D,\ i = 1,2,\dots,n\}")
 
-        st.markdown(f"""
-Jumlah data bootstrap dihitung sebagai:
+        st.markdown("""
+        **Keterangan simbol:**
+        - \(D\) : dataset training asli  
+        - \(D^*\) : dataset hasil bootstrap  
+        - \(x_i^*\) : sampel hasil pengambilan acak  
+        - \(n\) : jumlah data bootstrap  
+        """)
 
-\\[
-n = {bootstrap_ratio}\\% \\times {len(df)} = {n_samples}
-\\]
-""")
+        n = int(len(df) * sample_ratio / 100)
 
-        # =========================
-        # PEMBENTUKAN TREE (ENTROPY)
-        # =========================
-        st.markdown("## 2️⃣ Pembentukan Decision Tree")
+        st.markdown("**Perhitungan jumlah data bootstrap:**")
+        st.latex(rf"n = {sample_ratio}\% \times {len(df)} = {n}")
 
-        st.latex(r"""
-Entropy(S) = - \sum_{i=1}^{c} p_i \log_2(p_i)
-""")
+        np.random.seed(42)
+        bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
 
-        class_probs = df[target_col].value_counts(normalize=True)
-        st.dataframe(class_probs.to_frame("Proporsi"))
+        st.markdown("**Contoh 10 langkah pertama proses bootstrap:**")
 
-        entropy_root = -(class_probs * np.log2(class_probs)).sum()
+        step_table = pd.DataFrame({
+            "Langkah ke-": range(1, 11),
+            "Index Terpilih": bootstrap_indices[:10],
+            "With Replacement": ["Ya"] * 10
+        })
 
-        st.success(f"Entropy Dataset: {entropy_root:.4f}")
+        st.dataframe(step_table)
 
-        # =========================
-        # SIMULASI PREDIKSI TREE
-        # =========================
-        st.markdown("## 3️⃣ Prediksi Tiap Decision Tree")
+        st.markdown("""
+        **Interpretasi:**  
+        Karena sampling dilakukan dengan pengembalian, satu data dapat terpilih
+        lebih dari satu kali dalam dataset bootstrap.
+        """)
 
-        st.latex(r"""
-\hat{y}_1, \hat{y}_2, \dots, \hat{y}_T
-""")
+        st.markdown("---")
 
-        tree_preds = np.random.choice(df[target_col].unique(), size=n_trees)
+        # ==================================================
+        # 2. PEMBENTUKAN DECISION TREE
+        # ==================================================
+        st.markdown("## ② Pembentukan Decision Tree")
 
-        st.dataframe(pd.DataFrame({
+        st.markdown("""
+        Setelah dataset bootstrap terbentuk, langkah selanjutnya adalah membangun
+        **decision tree**. Pemilihan split pada tree dilakukan dengan mengukur
+        tingkat ketidakpastian data menggunakan **entropy**.
+        """)
+
+        st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
+
+        class_prop = df[target_col].value_counts(normalize=True)
+
+        st.markdown("**Proporsi kelas pada dataset:**")
+        st.dataframe(class_prop.to_frame("pᵢ"))
+
+        subs = " + ".join(
+            [f"{p:.4f} \\log_2({p:.4f})" for p in class_prop.values]
+        )
+
+        entropy_val = -(class_prop * np.log2(class_prop)).sum()
+
+        st.markdown("**Substitusi nilai ke dalam rumus entropy:**")
+        st.latex(rf"Entropy(S) = -({subs}) = {entropy_val:.4f}")
+
+        st.markdown("""
+        **Interpretasi:**  
+        Nilai entropy menunjukkan tingkat ketidakpastian data sebelum dilakukan split.
+        Semakin besar nilai entropy, semakin tidak homogen distribusi kelasnya.
+        """)
+
+        st.markdown("---")
+
+        # ==================================================
+        # 3. PREDIKSI SETIAP DECISION TREE
+        # ==================================================
+        st.markdown("## ③ Prediksi Tiap Decision Tree")
+
+        st.markdown("""
+        Setiap decision tree yang terbentuk menghasilkan **satu prediksi kelas**
+        berdasarkan struktur pohonnya masing-masing.
+        """)
+
+        st.latex(r"\hat{y}_1, \hat{y}_2, \dots, \hat{y}_T")
+
+        fake_preds = np.random.choice(df[target_col].unique(), size=n_trees)
+
+        pred_table = pd.DataFrame({
             "Tree ke-": range(1, n_trees + 1),
-            "Prediksi": tree_preds
-        }))
+            "Prediksi": fake_preds
+        })
 
-        # =========================
-        # VOTING MAYORITAS
-        # =========================
-        st.markdown("## 4️⃣ Voting Mayoritas")
+        st.dataframe(pred_table)
 
-        st.latex(r"""
-\hat{y} = \arg\max_{c} \sum_{t=1}^{T} I(\hat{y}_t = c)
-""")
+        st.markdown("""
+        **Interpretasi:**  
+        Karena setiap tree dibangun dari dataset yang berbeda, hasil prediksi
+        antar tree dapat bervariasi.
+        """)
 
-        vote = pd.Series(tree_preds).value_counts()
+        st.markdown("---")
+
+        # ==================================================
+        # 4. VOTING MAYORITAS
+        # ==================================================
+        st.markdown("## ④ Voting Mayoritas")
+
+        st.markdown("""
+        Tahap terakhir adalah menggabungkan seluruh prediksi decision tree
+        menggunakan metode **voting mayoritas**.
+        """)
+
+        st.latex(r"\hat{y} = \arg\max_c \sum_{t=1}^{T} I(\hat{y}_t = c)")
+
+        st.markdown("""
+        **Keterangan simbol:**
+        - \(T\) : jumlah decision tree  
+        - \(\hat{y}_t\) : prediksi dari tree ke-\(t\)  
+        - \(I(\cdot)\) : fungsi indikator  
+        """)
+
+        vote = pd.Series(fake_preds).value_counts()
+
+        st.markdown("**Perhitungan jumlah suara untuk setiap kelas:**")
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
-        st.info("""
-Bagian ini menunjukkan **alur voting** sebagai proses Random Forest.
-Prediksi akhir sistem **tidak ditampilkan** pada menu ini.
-""")
+        st.markdown("""
+        **Interpretasi:**  
+        Kelas dengan jumlah suara terbanyak akan dipilih sebagai hasil voting.
+        Pada menu ini, hasil akhir **tidak ditampilkan** karena fokus pada proses.
+        """)
 
-    st.markdown("---")
-    st.info(
-        "Menu ini berfungsi sebagai **penjelasan proses algoritma**. "
-        "Training, evaluasi, dan prediksi final tersedia pada menu lain."
-    )
+        st.info(
+            "Menu ini menampilkan **alur matematis Random Forest secara lengkap**. "
+            "Prediksi akhir dapat dilihat pada menu **Prediction App**."
+        )
