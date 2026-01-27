@@ -59,9 +59,10 @@ def show_about():
     st.dataframe(column_info, use_container_width=True)
 
     # =========================
-    # CONTOH DATA
+    # CUPLIKAN DATA
     # =========================
-    st.subheader("🔍 Contoh Data")
+    st.subheader("🔍 Cuplikan Data")
     st.dataframe(df.head(), use_container_width=True)
+
 
 
