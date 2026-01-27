@@ -70,10 +70,39 @@ def analysis_model_page():
         # ==================================================
         st.markdown("## ① Bootstrap Sampling")
 
+        st.markdown("""
+        **Bootstrap Sampling** adalah proses pengambilan sampel data secara **acak dengan pengembalian (with replacement)**.
+        Pada Random Forest, **setiap decision tree dilatih menggunakan dataset bootstrap yang berbeda**.
+
+        Tujuan utama:
+        - Membuat setiap pohon keputusan memiliki karakteristik data yang berbeda
+        - Mengurangi risiko **overfitting**
+        - Meningkatkan kemampuan generalisasi model
+        """)
+
+        st.markdown("Secara matematis, proses bootstrap dapat dituliskan sebagai:")
+
         st.latex(r"D^* = \{x_i^* \mid x_i^* \sim D\}")
 
+        st.markdown("""
+        Dengan:
+        - $D$ : dataset asli  
+        - $D^*$ : dataset hasil bootstrap  
+        - $x_i^*$ : data yang dipilih secara acak dari $D$
+        """)
+
         n = int(len(df) * sample_ratio / 100)
+
+        st.markdown("""
+        Ukuran sampel bootstrap ditentukan berdasarkan persentase tertentu dari total data.
+        """)
+
         st.latex(rf"n = {sample_ratio}\% \times {len(df)} = {n}")
+
+        st.markdown("""
+        Selanjutnya, dilakukan pemilihan indeks data secara acak **dengan pengembalian**,
+        sehingga satu data bisa terpilih lebih dari satu kali.
+        """)
 
         np.random.seed(42)
         bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
@@ -83,6 +112,11 @@ def analysis_model_page():
             "Index Terpilih": bootstrap_indices[:10],
             "With Replacement": ["Ya"] * 10
         }))
+
+        st.markdown("""
+        Tabel di atas menunjukkan contoh hasil bootstrap sampling.
+        Terlihat bahwa proses ini menggunakan **with replacement**, yang menjadi ciri khas metode bootstrap.
+        """)
 
         st.markdown("---")
 
@@ -276,3 +310,4 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
