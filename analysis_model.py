@@ -87,11 +87,33 @@ def analysis_model_page():
         st.markdown("---")
 
         # ==================================================
-        # 2. ENTROPY DATASET AWAL (DENGAN SUBSTITUSI ANGKA)
+        # 2. ENTROPY DATASET AWAL (DENGAN NARASI & KETERANGAN)
         # ==================================================
         st.markdown("## ② Pembentukan Decision Tree (Entropy Awal)")
 
+        # 🔹 NARASI TAMBAHAN
+        st.markdown("""
+        Pada tahap ini dilakukan **perhitungan entropy awal** pada seluruh dataset
+        sebelum dilakukan proses split. Entropy digunakan untuk mengukur
+        **tingkat ketidakpastian (impurity)** distribusi kelas pada data training.
+
+        Nilai entropy ini menjadi **acuan awal** dalam pembentukan decision tree.
+        Semakin tinggi nilai entropy, semakin tidak homogen distribusi kelas.
+        """)
+
+        # 🔹 RUMUS ENTROPY
         st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
+
+        # 🔹 KETERANGAN RUMUS
+        st.markdown("""
+        **Keterangan simbol pada rumus entropy:**
+        - \(S\) : seluruh dataset training  
+        - \(c\) : jumlah kelas pada variabel target  
+        - \(n_i\) : jumlah data pada kelas ke-\(i\)  
+        - \(N\) : total seluruh data  
+        - \(p_i = \frac{n_i}{N}\) : probabilitas kelas ke-\(i\)  
+        - \(\log_2\) : logaritma basis 2  
+        """)
 
         # Hitung jumlah data per kelas
         class_counts = df[target_col].value_counts()
@@ -140,9 +162,11 @@ def analysis_model_page():
 
         st.markdown("""
         **Interpretasi:**  
-        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas pada dataset awal.
-        Semakin besar entropy, semakin tidak homogen distribusi kelas.
+        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas
+        pada dataset awal sebelum dilakukan proses split.
         """)
+
+        st.markdown("---")
 
         # ==================================================
         # 3. SPLIT DATA (MANUAL)
