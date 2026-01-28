@@ -6,6 +6,19 @@ from scipy.stats import norm
 
 def analysis_model_page():
 
+    # ===== 1️⃣ FUNGSI ENTROPY SUBSET =====
+    def entropy_subset(df_subset):
+        target_col = "RiskLevel" if st.session_state.get("dataset_type") == "Kesehatan" else "Occupancy"
+        counts = df_subset[target_col].value_counts()
+        N = counts.sum()
+        entropy = 0
+        subs = []  # list untuk substitusi ke rumus
+        for ni in counts:
+            pi = ni / N
+            entropy += -pi * np.log2(pi)
+            subs.append(rf"\frac{{{ni}}}{{{N}}} \log_2({round(pi,4)})")
+        return entropy, subs
+
     # =========================
     # PENGAMAN DATASET
     # =========================
@@ -285,19 +298,6 @@ def analysis_model_page():
             pi = ni / N
             entropy_S += -pi * np.log2(pi)
 
-        # ====== FUNGSI ENTROPY SUBSET DENGAN SUBSTITUSI ======
-        def entropy_subset(df_subset):
-        target_col = "RiskLevel" if st.session_state.get("dataset_type") == "Kesehatan" else "Occupancy"
-        counts = df_subset[target_col].value_counts()
-        N = counts.sum()
-        entropy = 0
-        subs = []  # list untuk substitusi ke rumus
-        for ni in counts:
-            pi = ni / N
-            entropy += -pi * np.log2(pi)
-            subs.append(rf"\frac{{{ni}}}{{{N}}} \log_2({round(pi,4)})")
-        return entropy, subs
-
         # ==================================================
         # 4. SPLIT DATA & INFORMASI GAIN
         # ==================================================
@@ -386,6 +386,7 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
 
