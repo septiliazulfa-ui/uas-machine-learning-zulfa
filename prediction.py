@@ -12,28 +12,31 @@ from sklearn.linear_model import LogisticRegression
 # =========================
 # UTIL
 # =========================
-def _safe_read_csv(path):
+def safe_read_csv(path):
     return pd.read_csv(path, sep=None, engine="python")
 
 
-def _coerce_numeric(df, cols):
-    out = df.copy()
+def force_numeric(df, cols):
     for c in cols:
-        out[c] = pd.to_numeric(out[c], errors="coerce")
-    return out
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+    return df
 
 
 # =========================
-# TRAIN MODEL (CACHE)
+# TRAIN: MATERNAL
 # =========================
 @st.cache_resource
-def _train_maternal_model():
-    df = _safe_read_csv("Maternal Health Risk Data Set.csv")
+def train_maternal():
+    df = safe_read_csv("Maternal Health Risk Data Set.csv")
 
-    features = ["Age", "SystolicBP", "DiastolicBP", "BS", "BodyTemp", "HeartRate"]
+    features = [
+        "Age", "SystolicBP", "DiastolicBP",
+        "BS", "BodyTemp", "HeartRate"
+    ]
     target = "RiskLevel"
 
-    df = _coerce_numeric(df, features)
+    df = force_numeric(df, features)
     df = df.dropna(subset=features + [target])
 
     X = df[features]
@@ -48,126 +51,112 @@ def _train_maternal_model():
     ])
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+        X, y, test_size=0.2, stratify=y, random_state=42
     )
+
     model.fit(X_train, y_train)
 
-    return {"model": model, "features": features, "le": le}
+    return model, features, le
 
 
+# =========================
+# TRAIN: OCCUPANCY
+# =========================
 @st.cache_resource
-def _train_occupancy_model():
-    df = _safe_read_csv("datatraining occupancy.csv")
+def train_occupancy():
+    df = safe_read_csv("datatraining occupancy.csv")
 
-    features = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
+    features = [
+        "Temperature", "Humidity",
+        "Light", "CO2", "HumidityRatio"
+    ]
     target = "Occupancy"
 
-    df = _coerce_numeric(df, features + [target])
-
-    if "date" in df.columns:
-        df["Hour"] = pd.to_datetime(df["date"], errors="coerce").dt.hour
-        features.append("Hour")
-
+    df = force_numeric(df, features + [target])
     df = df.dropna(subset=features + [target])
 
     X = df[features]
     y = df[target].astype(int)
 
     model = RandomForestClassifier(
-        n_estimators=250,
-        random_state=42,
-        min_samples_leaf=2
+        n_estimators=300,
+        random_state=42
     )
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42, stratify=y
+        X, y, test_size=0.2, stratify=y, random_state=42
     )
+
     model.fit(X_train, y_train)
 
-    return {"model": model, "features": features}
+    return model, features
 
 
 # =========================
-# UI HELPERS
-# =========================
-def _risk_badge(p):
-    if p < 0.30:
-        return "🟢 Risiko Rendah"
-    elif p < 0.60:
-        return "🟡 Risiko Sedang"
-    return "🔴 Risiko Tinggi"
-
-
-# =========================
-# MAIN PAGE
+# UI
 # =========================
 def prediction_page():
     st.title("🔮 Prediction App")
-    st.write("Aplikasi prediksi Machine Learning berbasis input numerik")
 
     pilihan = st.selectbox(
-        "Pilih Jenis Prediksi Machine Learning",
-        ["Kesehatan", "Lingkungan"],
-        index=0
+        "Pilih Jenis Prediksi",
+        [
+            "Kesehatan (Maternal Health Risk)",
+            "Lingkungan (Occupancy Detection)"
+        ]
     )
 
     st.markdown("---")
 
-    if pilihan == "Kesehatan":
-        _app_prediksi_maternal()
+    if pilihan.startswith("Kesehatan"):
+        maternal_app()
     else:
-        _app_prediksi_occupancy()
+        occupancy_app()
 
 
 # =========================
-# APP: KESEHATAN
+# APP: MATERNAL
 # =========================
-def _app_prediksi_maternal():
+def maternal_app():
     st.subheader("🩺 Prediksi Risiko Kehamilan")
-    st.caption("Input numerik → klasifikasi Low / Mid / High Risk")
 
-    bundle = _train_maternal_model()
-    model = bundle["model"]
-    features = bundle["features"]
-    le = bundle["le"]
+    model, features, le = train_maternal()
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
         age = st.number_input("Age", 10, 80, 25)
-        sbp = st.number_input("SystolicBP", 70.0, 200.0, 120.0)
+        sys = st.number_input("SystolicBP", 70, 200, 120)
 
     with col2:
-        dbp = st.number_input("DiastolicBP", 40.0, 140.0, 80.0)
-        bs = st.number_input("Blood Sugar (BS)", 5.0, 30.0, 7.0)
+        dia = st.number_input("DiastolicBP", 40, 140, 80)
+        bs = st.number_input("BS", 5.0, 30.0, 7.0)
 
     with col3:
         temp = st.number_input("BodyTemp", 90.0, 110.0, 98.0)
         hr = st.number_input("HeartRate", 40, 140, 80)
 
-    input_df = pd.DataFrame([[age, sbp, dbp, bs, temp, hr]], columns=features)
+    input_df = pd.DataFrame(
+        [[age, sys, dia, bs, temp, hr]],
+        columns=features
+    )
 
     if st.button("🔍 Prediksi Risiko"):
         probs = model.predict_proba(input_df)[0]
         idx = np.argmax(probs)
         label = le.inverse_transform([idx])[0]
 
-        st.markdown("---")
-        colA, colB = st.columns(2)
-        colA.metric("Kategori Risiko", label.upper())
-        colB.metric("Confidence", f"{probs[idx]:.2%}")
+        st.success(f"**Prediksi:** {label.upper()}")
+        st.metric("Confidence", f"{probs[idx]:.2%}")
 
 
 # =========================
-# APP: LINGKUNGAN
+# APP: OCCUPANCY
 # =========================
-def _app_prediksi_occupancy():
+def occupancy_app():
     st.subheader("🏢 Prediksi Status Ruangan")
-    st.caption("Input sensor → Occupied / Not Occupied")
 
-    bundle = _train_occupancy_model()
-    model = bundle["model"]
-    features = bundle["features"]
+    model, features = train_occupancy()
 
     col1, col2, col3 = st.columns(3)
 
@@ -181,21 +170,16 @@ def _app_prediksi_occupancy():
 
     with col3:
         hratio = st.number_input("HumidityRatio", 0.0, 1.0, 0.0048)
-        hour = st.number_input("Hour", 0, 23, 17) if "Hour" in features else None
 
-    row = []
-    for f in features:
-        row.append(locals()[f.lower()] if f.lower() in locals() else hour)
+    input_df = pd.DataFrame(
+        [[temp, hum, light, co2, hratio]],
+        columns=features
+    )
 
-    input_df = pd.DataFrame([row], columns=features)
-
-    if st.button("🔍 Prediksi Status"):
+    if st.button("🔍 Prediksi Ruangan"):
         prob = model.predict_proba(input_df)[0][1]
         pred = model.predict(input_df)[0]
 
-        st.markdown("---")
-        colA, colB = st.columns(2)
-        colA.metric("Probabilitas Terisi", f"{prob:.2%}")
-        colB.metric("Prediksi", "TERISI" if pred == 1 else "KOSONG")
-
-        st.markdown(f"**Kategori Risiko:** {_risk_badge(prob)}")
+        status = "TERISI" if pred == 1 else "KOSONG"
+        st.success(f"**Status Ruangan:** {status}")
+        st.metric("Probabilitas Terisi", f"{prob:.2%}")
