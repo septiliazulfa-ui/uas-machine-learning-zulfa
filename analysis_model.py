@@ -177,7 +177,7 @@ def analysis_model_page():
         """)
 
         # Hitung jumlah data per kelas
-        class_counts = df[target_col].value_counts()
+        class_counts = df_bootstrap[target_col].value_counts()
         N = class_counts.sum()
 
         rows = []
@@ -239,12 +239,14 @@ def analysis_model_page():
         untuk mensimulasikan proses split pada decision tree.
         """)
 
-        numeric_features = df.select_dtypes(include="number").columns.drop(target_col, errors="ignore")
+        numeric_features = df_bootstrap.select_dtypes(
+            include="number"
+        ).columns.drop(target_col, errors="ignore")
 
         split_feature = st.selectbox("Pilih fitur untuk split", numeric_features)
 
-        min_val = float(df[split_feature].min())
-        max_val = float(df[split_feature].max())
+        min_val = float(df_bootstrap[split_feature].min())
+        max_val = float(df_bootstrap[split_feature].max())
 
         threshold = st.slider(
             "Pilih nilai threshold",
@@ -255,20 +257,21 @@ def analysis_model_page():
 
         st.latex(rf"{split_feature} \le {round(threshold,2)}")
 
-        left = df[df[split_feature] <= threshold]
-        right = df[df[split_feature] > threshold]
+        left = df_bootstrap[df_bootstrap[split_feature] <= threshold]
+        right = df_bootstrap[df_bootstrap[split_feature] > threshold]
 
         def entropy_subset(sub):
             counts = sub[target_col].value_counts()
             probs = counts / counts.sum()
+            probs = probs[probs > 0]   
             return -(probs * np.log2(probs)).sum()
 
         entropy_left = entropy_subset(left)
         entropy_right = entropy_subset(right)
 
         weighted_entropy = (
-            (len(left)/len(df)) * entropy_left +
-            (len(right)/len(df)) * entropy_right
+            (len(left)/len(df_bootstrap)) * entropy_left +
+            (len(right)/len(df_bootstrap)) * entropy_right
         )
 
         IG = entropy_S - weighted_entropy
@@ -337,6 +340,7 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
 
