@@ -2,14 +2,12 @@ import streamlit as st
 
 
 def analysis_model_page():
-    st.title("🧭 Langkah-Langkah Algoritma Klasifikasi (Detail)")
+    st.title("🧭 Langkah-Langkah Algoritma Klasifikasi")
 
     st.markdown("""
     Halaman ini menjelaskan **alur langkah-langkah (step-by-step)** dari beberapa algoritma klasifikasi:
     **K-Nearest Neighbor (KNN), Logistic Regression, Naive Bayes, Decision Tree, dan Random Forest**.
 
-    Penjelasan difokuskan pada **proses kerja algoritma**, bukan pada hasil prediksi maupun perhitungan matematis.
-    """)
 
     st.markdown("---")
 
@@ -282,3 +280,4 @@ def analysis_model_page():
         Random Forest mampu meningkatkan performa klasifikasi dengan
         menggabungkan banyak pohon keputusan serta mengurangi overfitting.
         """)
+
