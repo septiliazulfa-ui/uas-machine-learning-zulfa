@@ -13,21 +13,9 @@ from sklearn.linear_model import LogisticRegression
 # UTIL: LOAD + CLEAN
 # =========================
 def _safe_read_csv(path: str) -> pd.DataFrame:
-    """
-    Aman untuk delimiter beda-beda + aman untuk BOM (\\ufeff).
-    """
-    try:
-        df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
-    except Exception:
-        # fallback kalau encoding beda
-        df = pd.read_csv(path, sep=None, engine="python")
-
-    # rapikan nama kolom: hilangkan BOM + spasi
-    df.columns = (
-        df.columns.astype(str)
-        .str.replace("\ufeff", "", regex=False)
-        .str.strip()
-    )
+    # encoding="utf-8-sig" -> buang BOM (contoh: \ufeffAge)
+    df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+    df.columns = df.columns.astype(str).str.replace("\ufeff", "", regex=False).str.strip()
     return df
 
 
@@ -39,10 +27,11 @@ def _coerce_numeric(df: pd.DataFrame, cols):
     return out
 
 
-def _require_columns(df: pd.DataFrame, required_cols: list[str], title: str):
+def _require_columns(df: pd.DataFrame, required_cols: list[str], title: str) -> bool:
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        st.error(f"{title} tidak terbaca / kolom tidak cocok.")
+        st.markdown(f"### ❌ {title} tidak terbaca / kolom tidak cocok")
+        st.markdown("**Detail:**")
         st.code(
             f"Kolom tidak ditemukan: {missing}\n"
             f"Kolom terbaca di file: {list(df.columns)}"
@@ -57,22 +46,20 @@ def _require_columns(df: pd.DataFrame, required_cols: list[str], title: str):
 @st.cache_resource
 def _train_maternal_model():
     """
-    Dataset: Maternal Health Risk Data Set
+    Kesehatan: Maternal Health Risk
     Features: Age, SystolicBP, DiastolicBP, BS, BodyTemp, HeartRate
-    Target: RiskLevel (low/mid/high risk)
+    Target: RiskLevel
     """
     df = _safe_read_csv("Maternal Health Risk Data Set.csv")
 
     features = ["Age", "SystolicBP", "DiastolicBP", "BS", "BodyTemp", "HeartRate"]
     target = "RiskLevel"
 
-    # validasi kolom
     if not _require_columns(df, features + [target], "Dataset Kesehatan"):
         return None
 
     df = _coerce_numeric(df, features)
     df[target] = df[target].astype(str).str.strip().str.lower()
-
     df = df.dropna(subset=features + [target]).reset_index(drop=True)
 
     X = df[features].copy()
@@ -81,10 +68,14 @@ def _train_maternal_model():
     le = LabelEncoder()
     y = le.fit_transform(y_raw)
 
-    # Multiclass logistic regression + scaling
+    # ✅ FIX: jangan pakai multi_class (biar aman di versi sklearn berbeda)
+    # lbfgs aman untuk multinomial multiclass, default juga oke.
     model = Pipeline(steps=[
         ("scaler", StandardScaler()),
-        ("clf", LogisticRegression(max_iter=3000, multi_class="auto"))
+        ("clf", LogisticRegression(
+            solver="lbfgs",
+            max_iter=5000
+        ))
     ])
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -98,9 +89,9 @@ def _train_maternal_model():
 @st.cache_resource
 def _train_occupancy_model():
     """
-    Dataset: datatraining occupancy
-    Features: Temperature, Humidity, Light, CO2, HumidityRatio (+ optional Hour)
-    Target: Occupancy (0/1)
+    Lingkungan: Occupancy Detection
+    Features: Temperature, Humidity, Light, CO2, HumidityRatio (+Hour opsional)
+    Target: Occupancy
     """
     df = _safe_read_csv("datatraining occupancy.csv")
 
@@ -191,7 +182,6 @@ def _app_prediksi_maternal():
     le = bundle["label_encoder"]
 
     st.subheader("📋 Input Indikator Pasien")
-
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -249,7 +239,6 @@ def _app_prediksi_occupancy():
     features = bundle["features"]
 
     st.subheader("📋 Input Indikator Sensor")
-
     col1, col2, col3 = st.columns(3)
 
     with col1:
