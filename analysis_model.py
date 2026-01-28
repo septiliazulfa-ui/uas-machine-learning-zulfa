@@ -4,15 +4,11 @@ import numpy as np
 from scipy.stats import norm
 
 def analysis_model_page():
-    st.title("🧠 Analisis Model Klasifikasi (Definisi, Narasi, Rumus & Keterangan)")
+    st.title("🧭 Langkah-Langkah Algoritma Klasifikasi")
 
     st.markdown("""
     Halaman ini berisi **penjelasan teori** untuk beberapa algoritma klasifikasi:
     **KNN, Logistic Regression, Naive Bayes, Decision Tree, dan Random Forest**.
-
-    ✅ **Tidak wajib upload dataset** untuk membuka menu ini.  
-    Kamu cukup memilih algoritma, lalu akan tampil **definisi, narasi, rumus, dan keterangan simbol (dalam LaTeX)**.
-    """)
 
     st.markdown("---")
 
@@ -76,8 +72,9 @@ def analysis_model_page():
         \end{aligned}
         """)
 
-        st.info("Catatan: KNN sensitif terhadap skala fitur, sehingga normalisasi/standarisasi biasanya diperlukan.")
-
+        st.markdown(""" 
+        KNN sensitif terhadap skala fitur, sehingga normalisasi/standarisasi biasanya diperlukan.")
+        """)
     # =========================================================
     # LOGISTIC REGRESSION
     # =========================================================
@@ -481,3 +478,4 @@ def analysis_model_page():
         menggunakan data dan fitur acak, serta menentukan hasil akhir melalui mekanisme **majority voting** sehingga
         menghasilkan performa yang lebih stabil dan akurat.
         """)
+
