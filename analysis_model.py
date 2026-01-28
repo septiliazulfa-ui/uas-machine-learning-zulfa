@@ -99,12 +99,26 @@ def analysis_model_page():
 
         st.latex(rf"n = {sample_ratio}\% \times {len(df)} = {n}")
 
+        tree_id = st.slider(
+            "Pilih Decision Tree ke-",
+            min_value=1,
+            max_value=n_trees,
+            value=1,
+            step=1
+        )
+
+        st.markdown(f"""
+        Slider ini digunakan untuk memilih **decision tree ke-{tree_id}**.
+        Pada Random Forest, proses bootstrap sampling dilakukan **sebanyak jumlah tree (T)**,
+        sehingga setiap pohon dilatih menggunakan dataset bootstrap yang berbeda.
+        """)
+        
         st.markdown("""
         Selanjutnya, dilakukan pemilihan indeks data secara acak **dengan pengembalian**,
         sehingga satu data bisa terpilih lebih dari satu kali.
         """)
-
-        np.random.seed(42)
+        
+        np.random.seed(42 + tree_id)
         bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
 
         jumlah_tampil = st.slider(
@@ -320,5 +334,6 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
