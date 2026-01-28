@@ -290,84 +290,52 @@ def analysis_model_page():
         # ==================================================
         st.markdown("## ④ Proses Split Data & Informasi Gain")
 
-        st.markdown("""
-        Pada tahap ini, user memilih **satu fitur dan satu nilai threshold**
-        untuk mensimulasikan proses split pada decision tree.
-        """)
+        ig_results = []
 
         numeric_features = df_bootstrap.select_dtypes(
             include="number"
         ).columns.drop(target_col, errors="ignore")
 
-        split_feature = st.selectbox("Pilih fitur untuk split", numeric_features)
+        for feature in numeric_features:
+            unique_vals = np.unique(df_bootstrap[feature])
+    
+        # supaya tidak terlalu banyak threshold
+        thresholds = np.percentile(unique_vals, [10, 25, 50, 75, 90])
 
-        min_val = float(df_bootstrap[split_feature].min())
-        max_val = float(df_bootstrap[split_feature].max())
+        for threshold in thresholds:
+            left = df_bootstrap[df_bootstrap[feature] <= threshold]
+            right = df_bootstrap[df_bootstrap[feature] > threshold]
 
-        threshold = st.slider(
-            "Pilih nilai threshold",
-            min_value=min_val,
-            max_value=max_val,
-            value=(min_val + max_val) / 2
-        )
+            if len(left) == 0 or len(right) == 0:
+                continue
 
-        st.latex(rf"{split_feature} \le {round(threshold,2)}")
+            entropy_left = entropy_subset(left)
+            entropy_right = entropy_subset(right)
 
-        left = df_bootstrap[df_bootstrap[split_feature] <= threshold]
-        right = df_bootstrap[df_bootstrap[split_feature] > threshold]
+            weighted_entropy = (
+                (len(left)/len(df_bootstrap)) * entropy_left +
+                (len(right)/len(df_bootstrap)) * entropy_right
+            )
 
-        def entropy_subset(sub):
-            counts = sub[target_col].value_counts()
-            probs = counts / counts.sum()
-            probs = probs[probs > 0]   
-            return -(probs * np.log2(probs)).sum()
+            IG = entropy_S - weighted_entropy
 
-        entropy_left = entropy_subset(left)
-        entropy_right = entropy_subset(right)
+            ig_results.append({
+                "Tree ke-": tree_id,
+                "Fitur": feature,
+                "Threshold": round(threshold, 4),
+                "Entropy Split": round(weighted_entropy, 4),
+                "Information Gain": round(IG, 4)
+            })
+            
+        df_ig = pd.DataFrame(ig_results)
 
-        weighted_entropy = (
-            (len(left)/len(df_bootstrap)) * entropy_left +
-            (len(right)/len(df_bootstrap)) * entropy_right
-        )
+        st.markdown("## 📊 Semua Hasil Information Gain")
+        st.dataframe(df_ig.sort_values("Information Gain", ascending=False))
 
-        IG = entropy_S - weighted_entropy
+        best_split = df_ig.loc[df_ig["Information Gain"].idxmax()]
 
-        st.markdown("### 🔹 Distribusi Kelas Setelah Split")
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("**Node Kiri (≤ threshold)**")
-            st.dataframe(left[target_col].value_counts().to_frame("Jumlah"))
-
-        with col2:
-            st.markdown("**Node Kanan (> threshold)**")
-            st.dataframe(right[target_col].value_counts().to_frame("Jumlah"))
-
-        st.markdown("### 🔹 Perhitungan Entropy Setelah Split")
-
-        st.latex(rf"Entropy(S_{{left}}) = {round(entropy_left,4)}")
-        st.latex(rf"Entropy(S_{{right}}) = {round(entropy_right,4)}")
-
-        st.latex(
-            rf"""
-            Entropy_{{split}} =
-            \frac{{{len(left)}}}{{{len(df_bootstrap)}}} \times {round(entropy_left,4)}
-            +
-            \frac{{{len(right)}}}{{{len(df_bootstrap)}}} \times {round(entropy_right,4)}
-            = {round(weighted_entropy,4)}
-            """
-        )
-
-        st.latex(rf"IG = {round(entropy_S,4)} - {round(weighted_entropy,4)} = {round(IG,4)}")
-
-        st.markdown("""
-        **Interpretasi:**  
-        Semakin besar nilai **Information Gain**, semakin baik fitur dan threshold
-        tersebut digunakan untuk split pada decision tree.
-        """)
-
-        st.markdown("---")
+        st.markdown("## 🏆 Split Terbaik (IG Terbesar)")
+        st.dataframe(pd.DataFrame([best_split]))
 
         # ==================================================
         # 5. PREDIKSI TIAP TREE
@@ -396,6 +364,7 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
 
