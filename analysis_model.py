@@ -121,6 +121,9 @@ def analysis_model_page():
         np.random.seed(42 + tree_id)
         bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
 
+        # SIMPAN DATASET BOOTSTRAP
+        df_bootstrap = df.loc[bootstrap_indices]
+
         jumlah_tampil = st.slider(
             "Jumlah data bootstrap yang ditampilkan (hanya untuk visualisasi)",
             min_value=5,
@@ -334,6 +337,7 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
 
