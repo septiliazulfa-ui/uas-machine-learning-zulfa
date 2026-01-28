@@ -285,6 +285,19 @@ def analysis_model_page():
             pi = ni / N
             entropy_S += -pi * np.log2(pi)
 
+        # ====== FUNGSI ENTROPY SUBSET DENGAN SUBSTITUSI ======
+        def entropy_subset(df_subset):
+        target_col = "RiskLevel" if st.session_state.get("dataset_type") == "Kesehatan" else "Occupancy"
+        counts = df_subset[target_col].value_counts()
+        N = counts.sum()
+        entropy = 0
+        subs = []  # list untuk substitusi ke rumus
+        for ni in counts:
+            pi = ni / N
+            entropy += -pi * np.log2(pi)
+            subs.append(rf"\frac{{{ni}}}{{{N}}} \log_2({round(pi,4)})")
+        return entropy, subs
+
         # ==================================================
         # 4. SPLIT DATA & INFORMASI GAIN
         # ==================================================
@@ -292,48 +305,57 @@ def analysis_model_page():
 
         ig_results = []
 
-        numeric_features = df_bootstrap.select_dtypes(
-            include="number"
-        ).columns.drop(target_col, errors="ignore")
+        numeric_features = df_bootstrap.select_dtypes(include="number").columns.drop(target_col, errors="ignore")
 
         for feature in numeric_features:
             unique_vals = np.unique(df_bootstrap[feature])
-    
-        # supaya tidak terlalu banyak threshold
-        thresholds = np.percentile(unique_vals, [10, 25, 50, 75, 90])
+            thresholds = np.percentile(unique_vals, [10, 25, 50, 75, 90])
 
-        for threshold in thresholds:
-            left = df_bootstrap[df_bootstrap[feature] <= threshold]
-            right = df_bootstrap[df_bootstrap[feature] > threshold]
+            for threshold in thresholds:
+                left = df_bootstrap[df_bootstrap[feature] <= threshold]
+                right = df_bootstrap[df_bootstrap[feature] > threshold]
 
-            if len(left) == 0 or len(right) == 0:
-                continue
+                if len(left) == 0 or len(right) == 0:
+                    continue
 
-            entropy_left = entropy_subset(left)
-            entropy_right = entropy_subset(right)
+                # Hitung entropy dan dapatkan substitusi LaTeX
+                entropy_left, subs_left = entropy_subset(left)
+                entropy_right, subs_right = entropy_subset(right)
 
-            weighted_entropy = (
-                (len(left)/len(df_bootstrap)) * entropy_left +
-                (len(right)/len(df_bootstrap)) * entropy_right
-            )
+                # Weighted entropy & IG
+                weighted_entropy = (len(left)/len(df_bootstrap))*entropy_left + (len(right)/len(df_bootstrap))*entropy_right
+                IG = entropy_S - weighted_entropy
 
-            IG = entropy_S - weighted_entropy
+                # ====== TAMPILKAN LANGKAH PERHITUNGAN ======
+                st.markdown(f"### 🔹 Fitur: {feature} | Threshold: {round(threshold,4)}")
+        
+                st.latex(r"Entropy(S_{left}) = -(" + " + ".join(subs_left) + ") = " + str(round(entropy_left,4)))
+                st.latex(r"Entropy(S_{right}) = -(" + " + ".join(subs_right) + ") = " + str(round(entropy_right,4)))
+        
+                st.latex(
+                    rf"Weighted\ Entropy = \frac{{{len(left)}}}{{{len(df_bootstrap)}}} \times {round(entropy_left,4)} + "
+                    rf"\frac{{{len(right)}}}{{{len(df_bootstrap)}}} \times {round(entropy_right,4)} = {round(weighted_entropy,4)}"
+                )
+        
+                st.latex(
+                    rf"IG = Entropy(S) - Weighted\ Entropy = {round(entropy_S,4)} - {round(weighted_entropy,4)} = {round(IG,4)}"
+                )
 
-            ig_results.append({
-                "Tree ke-": tree_id,
-                "Fitur": feature,
-                "Threshold": round(threshold, 4),
-                "Entropy Split": round(weighted_entropy, 4),
-                "Information Gain": round(IG, 4)
-            })
-            
+                # Simpan hasil ke dataframe
+                ig_results.append({
+                    "Tree ke-": tree_id,
+                    "Fitur": feature,
+                    "Threshold": round(threshold, 4),
+                    "Entropy Split": round(weighted_entropy, 4),
+                    "Information Gain": round(IG, 4)
+                })
+
+        # Tampilkan semua IG
         df_ig = pd.DataFrame(ig_results)
-
         st.markdown("## 📊 Semua Hasil Information Gain")
         st.dataframe(df_ig.sort_values("Information Gain", ascending=False))
 
         best_split = df_ig.loc[df_ig["Information Gain"].idxmax()]
-
         st.markdown("## 🏆 Split Terbaik (IG Terbesar)")
         st.dataframe(pd.DataFrame([best_split]))
 
@@ -364,6 +386,7 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
 
