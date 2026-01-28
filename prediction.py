@@ -10,115 +10,151 @@ from sklearn.linear_model import LogisticRegression
 
 
 # =========================
-# UTIL
+# UTIL: LOAD + CLEAN
 # =========================
-def safe_read_csv(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path, sep=None, engine="python")
-    df.columns = [str(c).strip() for c in df.columns]  # rapihin header
+def _safe_read_csv(path: str) -> pd.DataFrame:
+    """
+    Aman untuk delimiter beda-beda + aman untuk BOM (\\ufeff).
+    """
+    try:
+        df = pd.read_csv(path, sep=None, engine="python", encoding="utf-8-sig")
+    except Exception:
+        # fallback kalau encoding beda
+        df = pd.read_csv(path, sep=None, engine="python")
+
+    # rapikan nama kolom: hilangkan BOM + spasi
+    df.columns = (
+        df.columns.astype(str)
+        .str.replace("\ufeff", "", regex=False)
+        .str.strip()
+    )
     return df
 
 
-def normalize_col(s: str) -> str:
-    return str(s).strip().lower().replace(" ", "")
+def _coerce_numeric(df: pd.DataFrame, cols):
+    out = df.copy()
+    for c in cols:
+        if c in out.columns:
+            out[c] = pd.to_numeric(out[c], errors="coerce")
+    return out
 
 
-def resolve_columns(df: pd.DataFrame, wanted: list[str]) -> dict:
-    lookup = {normalize_col(c): c for c in df.columns}
-    mapping = {}
-    missing = []
-    for w in wanted:
-        key = normalize_col(w)
-        if key in lookup:
-            mapping[w] = lookup[key]
-        else:
-            missing.append(w)
-
+def _require_columns(df: pd.DataFrame, required_cols: list[str], title: str):
+    missing = [c for c in required_cols if c not in df.columns]
     if missing:
-        raise KeyError(
+        st.error(f"{title} tidak terbaca / kolom tidak cocok.")
+        st.code(
             f"Kolom tidak ditemukan: {missing}\n"
             f"Kolom terbaca di file: {list(df.columns)}"
         )
-    return mapping
-
-
-def force_numeric(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
-    for c in cols:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    return df
+        return False
+    return True
 
 
 # =========================
-# TRAINERS (CACHE)
+# TRAIN MODEL (CACHE)
 # =========================
 @st.cache_resource
-def train_maternal_from_repo():
-    df = safe_read_csv("Maternal Health Risk Data Set.csv")
+def _train_maternal_model():
+    """
+    Dataset: Maternal Health Risk Data Set
+    Features: Age, SystolicBP, DiastolicBP, BS, BodyTemp, HeartRate
+    Target: RiskLevel (low/mid/high risk)
+    """
+    df = _safe_read_csv("Maternal Health Risk Data Set.csv")
 
-    wanted_features = ["Age", "SystolicBP", "DiastolicBP", "BS", "BodyTemp", "HeartRate"]
-    wanted_target = "RiskLevel"
+    features = ["Age", "SystolicBP", "DiastolicBP", "BS", "BodyTemp", "HeartRate"]
+    target = "RiskLevel"
 
-    mapping = resolve_columns(df, wanted_features + [wanted_target])
+    # validasi kolom
+    if not _require_columns(df, features + [target], "Dataset Kesehatan"):
+        return None
 
-    feature_cols = [mapping[c] for c in wanted_features]
-    target_col = mapping[wanted_target]
+    df = _coerce_numeric(df, features)
+    df[target] = df[target].astype(str).str.strip().str.lower()
 
-    df = force_numeric(df, feature_cols)
-    df[target_col] = df[target_col].astype(str).str.strip()
-    df = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
+    df = df.dropna(subset=features + [target]).reset_index(drop=True)
 
-    X = df[feature_cols].copy()
-    y_raw = df[target_col].copy()
+    X = df[features].copy()
+    y_raw = df[target].copy()
 
     le = LabelEncoder()
     y = le.fit_transform(y_raw)
 
-    model = Pipeline([
+    # Multiclass logistic regression + scaling
+    model = Pipeline(steps=[
         ("scaler", StandardScaler()),
-        ("clf", LogisticRegression(max_iter=2000))
+        ("clf", LogisticRegression(max_iter=3000, multi_class="auto"))
     ])
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
     model.fit(X_train, y_train)
 
-    return model, wanted_features, feature_cols, le
+    return {"model": model, "features": features, "label_encoder": le}
 
 
 @st.cache_resource
-def train_occupancy_from_repo():
-    df = safe_read_csv("datatraining occupancy.csv")
+def _train_occupancy_model():
+    """
+    Dataset: datatraining occupancy
+    Features: Temperature, Humidity, Light, CO2, HumidityRatio (+ optional Hour)
+    Target: Occupancy (0/1)
+    """
+    df = _safe_read_csv("datatraining occupancy.csv")
 
-    wanted_features = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
-    wanted_target = "Occupancy"
+    base_features = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
+    target = "Occupancy"
 
-    mapping = resolve_columns(df, wanted_features + [wanted_target])
+    if not _require_columns(df, base_features + [target], "Dataset Lingkungan"):
+        return None
 
-    feature_cols = [mapping[c] for c in wanted_features]
-    target_col = mapping[wanted_target]
+    df = _coerce_numeric(df, base_features + [target])
 
-    df = force_numeric(df, feature_cols + [target_col])
-    df = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
+    features = base_features.copy()
+    if "date" in df.columns:
+        dt = pd.to_datetime(df["date"], errors="coerce")
+        df["Hour"] = dt.dt.hour
+        features.append("Hour")
 
-    X = df[feature_cols].copy()
-    y = df[target_col].astype(int).copy()
+    df = df.dropna(subset=features + [target]).reset_index(drop=True)
 
-    model = RandomForestClassifier(
-        n_estimators=300,
-        random_state=42,
-        min_samples_leaf=2
-    )
+    X = df[features].copy()
+    y = df[target].astype(int).copy()
+
+    model = Pipeline(steps=[
+        ("clf", RandomForestClassifier(
+            n_estimators=250,
+            random_state=42,
+            min_samples_leaf=2
+        ))
+    ])
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, stratify=y, random_state=42
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
     model.fit(X_train, y_train)
 
-    return model, wanted_features, feature_cols
+    return {"model": model, "features": features}
 
 
 # =========================
-# PAGE
+# LABEL HELPERS
+# =========================
+def _maternal_badge(label: str) -> str:
+    l = label.lower().strip()
+    if "low" in l:
+        return "🟢 Low Risk"
+    if "mid" in l or "medium" in l:
+        return "🟡 Mid Risk"
+    if "high" in l:
+        return "🔴 High Risk"
+    return f"🔎 {label}"
+
+
+# =========================
+# MAIN PAGE
 # =========================
 def prediction_page():
     st.write("**Aplikasi Prediksi Machine Learning**")
@@ -133,98 +169,134 @@ def prediction_page():
 
     st.markdown("---")
 
-    if pilihan.startswith("Kesehatan"):
-        maternal_app()
+    if pilihan == "Kesehatan (Maternal Health Risk)":
+        _app_prediksi_maternal()
     else:
-        occupancy_app()
+        _app_prediksi_occupancy()
 
 
 # =========================
 # APP: MATERNAL
 # =========================
-def maternal_app():
+def _app_prediksi_maternal():
     st.title("🩺 Prediksi Risiko Kehamilan (Maternal Health Risk)")
     st.caption("Input indikator → prediksi tingkat risiko (low / mid / high)")
 
-    try:
-        model, ui_features, real_features, le = train_maternal_from_repo()
-    except Exception as e:
-        st.error("Dataset Kesehatan tidak terbaca / kolom tidak cocok.")
-        st.code(str(e))
+    bundle = _train_maternal_model()
+    if bundle is None:
         return
+
+    model = bundle["model"]
+    features = bundle["features"]
+    le = bundle["label_encoder"]
 
     st.subheader("📋 Input Indikator Pasien")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        age = st.number_input("Age", 10, 80, 25)
-        systolic = st.number_input("SystolicBP", 70, 200, 120)
-    with c2:
-        diastolic = st.number_input("DiastolicBP", 40, 140, 80)
-        bs = st.number_input("BS", 5.0, 30.0, 7.0)
-    with c3:
-        bodytemp = st.number_input("BodyTemp", 90.0, 110.0, 98.0)
-        heartrate = st.number_input("HeartRate", 40, 140, 80)
+    col1, col2, col3 = st.columns(3)
 
-    input_df = pd.DataFrame([[age, systolic, diastolic, bs, bodytemp, heartrate]], columns=real_features)
+    with col1:
+        age = st.number_input("Age (Tahun)", min_value=10, max_value=80, value=25, step=1)
+        systolic = st.number_input("SystolicBP", min_value=70.0, max_value=200.0, value=120.0, step=1.0)
+
+    with col2:
+        diastolic = st.number_input("DiastolicBP", min_value=40.0, max_value=140.0, value=80.0, step=1.0)
+        bs = st.number_input("BS (Blood Sugar)", min_value=5.0, max_value=30.0, value=7.0, step=0.1)
+
+    with col3:
+        bodytemp = st.number_input("BodyTemp", min_value=90.0, max_value=110.0, value=98.0, step=0.1)
+        heartrate = st.number_input("HeartRate", min_value=40, max_value=140, value=80, step=1)
+
+    input_df = pd.DataFrame([[age, systolic, diastolic, bs, bodytemp, heartrate]], columns=features)
 
     if st.button("🔍 Prediksi Risiko Kehamilan"):
         probs = model.predict_proba(input_df)[0]
-        idx = int(np.argmax(probs))
-        label = le.inverse_transform([idx])[0]
+        pred_idx = int(np.argmax(probs))
+        pred_label = le.inverse_transform([pred_idx])[0]
 
         st.markdown("---")
         st.subheader("📊 Hasil Prediksi")
 
         colA, colB = st.columns(2)
-        colA.metric("Prediksi Risiko", label.upper())
-        colB.metric("Confidence", f"{probs[idx]:.2%}")
+        colA.metric("Prediksi Risiko", _maternal_badge(pred_label))
+        colB.metric("Confidence (kelas terpilih)", f"{probs[pred_idx]:.2%}")
 
         st.subheader("🧾 Probabilitas Setiap Kelas")
         prob_df = pd.DataFrame({
             "Kelas": le.inverse_transform(np.arange(len(probs))),
             "Probabilitas": probs
-        }).sort_values("Probabilitas", ascending=False)
+        }).sort_values("Probabilitas", ascending=False).reset_index(drop=True)
         st.table(prob_df)
+
+        st.subheader("💡 Catatan")
+        st.markdown("""
+- Hasil prediksi bersifat **edukatif** dan bergantung pada pola data latih.
+- Untuk keputusan klinis, tetap diperlukan **konsultasi tenaga kesehatan**.
+        """)
 
 
 # =========================
 # APP: OCCUPANCY
 # =========================
-def occupancy_app():
+def _app_prediksi_occupancy():
     st.title("🏢 Prediksi Status Ruangan (Occupancy Detection)")
     st.caption("Input indikator sensor → prediksi ruangan TERISI / KOSONG")
 
-    try:
-        model, ui_features, real_features = train_occupancy_from_repo()
-    except Exception as e:
-        st.error("Dataset Lingkungan tidak terbaca / kolom tidak cocok.")
-        st.code(str(e))
+    bundle = _train_occupancy_model()
+    if bundle is None:
         return
+
+    model = bundle["model"]
+    features = bundle["features"]
 
     st.subheader("📋 Input Indikator Sensor")
 
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        temp = st.number_input("Temperature", -10.0, 60.0, 23.0, step=0.1)
-        hum = st.number_input("Humidity", 0.0, 100.0, 27.0, step=0.1)
-    with c2:
-        light = st.number_input("Light", 0.0, 2000.0, 426.0, step=1.0)
-        co2 = st.number_input("CO2", 0.0, 5000.0, 720.0, step=1.0)
-    with c3:
-        hratio = st.number_input("HumidityRatio", 0.0, 1.0, 0.0048, step=0.0001)
+    col1, col2, col3 = st.columns(3)
 
-    input_df = pd.DataFrame([[temp, hum, light, co2, hratio]], columns=real_features)
+    with col1:
+        temp = st.number_input("Temperature", min_value=-10.0, max_value=60.0, value=23.0, step=0.1)
+        humidity = st.number_input("Humidity", min_value=0.0, max_value=100.0, value=27.0, step=0.1)
+
+    with col2:
+        light = st.number_input("Light", min_value=0.0, max_value=2000.0, value=426.0, step=1.0)
+        co2 = st.number_input("CO2", min_value=0.0, max_value=5000.0, value=720.0, step=1.0)
+
+    with col3:
+        hratio = st.number_input("HumidityRatio", min_value=0.0, max_value=1.0, value=0.0048, step=0.0001)
+        hour = None
+        if "Hour" in features:
+            hour = st.number_input("Hour (opsional)", min_value=0, max_value=23, value=17, step=1)
+
+    row = []
+    for f in features:
+        if f == "Temperature":
+            row.append(temp)
+        elif f == "Humidity":
+            row.append(humidity)
+        elif f == "Light":
+            row.append(light)
+        elif f == "CO2":
+            row.append(co2)
+        elif f == "HumidityRatio":
+            row.append(hratio)
+        elif f == "Hour":
+            row.append(hour if hour is not None else 12)
+
+    input_df = pd.DataFrame([row], columns=features)
 
     if st.button("🔍 Prediksi Status Ruangan"):
-        prob_occ = float(model.predict_proba(input_df)[0][1])
+        prob_occupied = float(model.predict_proba(input_df)[0][1])
         pred = int(model.predict(input_df)[0])
-
         status = "TERISI (Occupied)" if pred == 1 else "KOSONG (Not Occupied)"
 
         st.markdown("---")
         st.subheader("📊 Hasil Prediksi")
 
         colA, colB = st.columns(2)
-        colA.metric("Probabilitas Terisi", f"{prob_occ:.2%}")
+        colA.metric("Probabilitas Terisi", f"{prob_occupied:.2%}")
         colB.metric("Prediksi Status", status)
+
+        st.subheader("💡 Catatan")
+        st.markdown("""
+- Prediksi bersifat **klasifikasi**, bukan forecasting waktu.
+- Nilai sensor yang ekstrem dapat memengaruhi hasil prediksi.
+        """)
