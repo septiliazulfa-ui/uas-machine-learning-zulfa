@@ -147,53 +147,11 @@ def analysis_model_page():
 
         st.markdown("---")
 
-        entropy_per_tree = []
-
-        for t in range(1, n_trees + 1):
-            np.random.seed(42 + t)
-            bootstrap_indices = np.random.choice(
-                df.index,
-                size=n,
-                replace=True
-            )
-            df_bootstrap = df.loc[bootstrap_indices]
-
-            class_counts = df_bootstrap[target_col].value_counts()
-            N = class_counts.sum()
-
-            entropy_S = 0
-            for ni in class_counts:
-                pi = ni / N
-                entropy_S += -pi * np.log2(pi)
-
-            entropy_per_tree.append({
-                "Tree ke-": t,
-                "Entropy Awal": round(entropy_S, 4)
-            })
-
-        st.markdown("## 📊 Perbandingan Entropy Awal Antar Tree")
-
-        df_entropy_tree = pd.DataFrame(entropy_per_tree)
-        st.dataframe(df_entropy_tree, use_container_width=True)
-        
-        # Bootstrap ulang sesuai tree yang dipilih user
-        np.random.seed(42 + tree_id)
-        bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
-        df_bootstrap = df.loc[bootstrap_indices]
-
-        st.markdown(f"""
-        Pada bagian berikut akan ditampilkan **perhitungan entropy dan proses split**
-        untuk **Decision Tree ke-{tree_id}** yang dipilih oleh user.
-        Bagian ini bertujuan untuk menunjukkan bagaimana **satu pohon keputusan**
-        dibentuk di dalam Random Forest.
-        """)
-        
         # ==================================================
-        # 2. ENTROPY DATASET AWAL (DENGAN NARASI & KETERANGAN)
+        # 2. PEMBENTUKAN DECISION TREE (Entropy Awal)
         # ==================================================
         st.markdown("## ② Pembentukan Decision Tree (Entropy Awal)")
-
-        # 🔹 NARASI TAMBAHAN
+                # 🔹 NARASI TAMBAHAN
         st.markdown("""
         Pada tahap ini dilakukan **perhitungan entropy awal** pada seluruh dataset
         sebelum dilakukan proses split. Entropy digunakan untuk mengukur
@@ -271,9 +229,66 @@ def analysis_model_page():
         st.markdown("---")
 
         # ==================================================
-        # 3. SPLIT DATA (MANUAL)
+        # 3. PERBANDINGAN ENTROPY AWAL ANTAR TREE 
         # ==================================================
-        st.markdown("## ③ Proses Split Data (Manual)")
+        st.markdown("## ③ Perbandingan Entropy Awal Antar Tree")
+
+        entropy_per_tree = []
+
+        for t in range(1, n_trees + 1):
+            np.random.seed(42 + t)
+            bootstrap_indices = np.random.choice(
+                df.index,
+                size=n,
+                replace=True
+            )
+            df_bootstrap = df.loc[bootstrap_indices]
+
+            class_counts = df_bootstrap[target_col].value_counts()
+            N = class_counts.sum()
+
+            entropy_S = 0
+            for ni in class_counts:
+                pi = ni / N
+                entropy_S += -pi * np.log2(pi)
+
+            entropy_per_tree.append({
+                "Tree ke-": t,
+                "Entropy Awal": round(entropy_S, 4)
+            })
+
+        st.markdown("## 📊 Perbandingan Entropy Awal Antar Tree")
+
+        df_entropy_tree = pd.DataFrame(entropy_per_tree)
+        st.dataframe(df_entropy_tree, use_container_width=True)
+        
+        # Bootstrap ulang sesuai tree yang dipilih user
+        np.random.seed(42 + tree_id)
+        bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
+        df_bootstrap = df.loc[bootstrap_indices]
+
+        st.markdown(f"""
+        Pada bagian berikut akan ditampilkan **perhitungan entropy dan proses split**
+        untuk **Decision Tree ke-{tree_id}** yang dipilih oleh user.
+        Bagian ini bertujuan untuk menunjukkan bagaimana **satu pohon keputusan**
+        dibentuk di dalam Random Forest.
+        """)
+        
+        # ==================================================
+        # HITUNG ULANG ENTROPY AWAL UNTUK TREE TERPILIH
+        # ==================================================
+        class_counts = df_bootstrap[target_col].value_counts()
+        N = class_counts.sum()
+
+        entropy_S = 0
+        for ni in class_counts:
+            pi = ni / N
+            entropy_S += -pi * np.log2(pi)
+
+        # ==================================================
+        # 4. SPLIT DATA & INFORMASI GAIN
+        # ==================================================
+        st.markdown("## ④ Proses Split Data & Informasi Gain")
 
         st.markdown("""
         Pada tahap ini, user memilih **satu fitur dan satu nilai threshold**
@@ -355,9 +370,9 @@ def analysis_model_page():
         st.markdown("---")
 
         # ==================================================
-        # 4. PREDIKSI TIAP TREE
+        # 5. PREDIKSI TIAP TREE
         # ==================================================
-        st.markdown("## ④ Prediksi Tiap Decision Tree")
+        st.markdown("## ⑤ Prediksi Tiap Decision Tree")
 
         st.latex(r"\hat{y}_1, \hat{y}_2, \dots, \hat{y}_T")
 
@@ -371,9 +386,9 @@ def analysis_model_page():
         st.markdown("---")
 
         # ==================================================
-        # 5. VOTING MAYORITAS
+        # 6. VOTING MAYORITAS
         # ==================================================
-        st.markdown("## ⑤ Voting Mayoritas")
+        st.markdown("## ⑥ Voting Mayoritas")
 
         st.latex(r"\hat{y} = \arg\max_c \sum_{t=1}^{T} I(\hat{y}_t = c)")
 
@@ -381,6 +396,7 @@ def analysis_model_page():
         st.dataframe(vote.to_frame("Jumlah Suara"))
 
         st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+
 
 
 
