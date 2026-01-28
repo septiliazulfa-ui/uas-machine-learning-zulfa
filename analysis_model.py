@@ -3,40 +3,15 @@ import pandas as pd
 import numpy as np
 from scipy.stats import norm
 
-
 def analysis_model_page():
+    st.title("🧠 Analisis Model Klasifikasi (Definisi, Narasi, Rumus & Keterangan)")
 
-    # ===== 1️⃣ FUNGSI ENTROPY SUBSET =====
-    def entropy_subset(df_subset):
-        target_col = "RiskLevel" if st.session_state.get("dataset_type") == "Kesehatan" else "Occupancy"
-        counts = df_subset[target_col].value_counts()
-        N = counts.sum()
-        entropy = 0
-        subs = []  # list untuk substitusi ke rumus
-        for ni in counts:
-            pi = ni / N
-            entropy += -pi * np.log2(pi)
-            subs.append(rf"\frac{{{ni}}}{{{N}}} \log_2({round(pi,4)})")
-        return entropy, subs
-
-    # =========================
-    # PENGAMAN DATASET
-    # =========================
-    if "df" not in st.session_state:
-        st.warning("Silakan upload dataset terlebih dahulu.")
-        return
-
-    df = st.session_state["df"]
-    dataset_type = st.session_state.get("dataset_type")
-
-    target_col = "RiskLevel" if dataset_type == "Kesehatan" else "Occupancy"
-
-    st.title("🧠 Analisis Model Klasifikasi (Proses & Perhitungan Detail)")
     st.markdown("""
-    Halaman ini menampilkan **alur proses dan perhitungan matematis algoritma klasifikasi**.
-    Fokus utama adalah **bagaimana setiap algoritma bekerja**, bukan sekadar hasil akhir.
-    
-    ⚠️ Prediksi final tersedia pada menu **Prediction App**.
+    Halaman ini berisi **penjelasan teori** untuk beberapa algoritma klasifikasi:
+    **KNN, Logistic Regression, Naive Bayes, Decision Tree, dan Random Forest**.
+
+    ✅ **Tidak wajib upload dataset** untuk membuka menu ini.  
+    Kamu cukup memilih algoritma, lalu akan tampil **definisi, narasi, rumus, dan keterangan simbol (dalam LaTeX)**.
     """)
 
     st.markdown("---")
@@ -55,344 +30,454 @@ def analysis_model_page():
     st.markdown("---")
 
     # =========================================================
+    # KNN
+    # =========================================================
+    if algo == "K-Nearest Neighbor (KNN)":
+        st.subheader("📌 K-Nearest Neighbor (KNN)")
+
+        st.markdown("## Definisi")
+        st.markdown("""
+        **K-Nearest Neighbor (KNN)** adalah algoritma klasifikasi berbasis jarak (distance-based).
+        KNN menentukan kelas sebuah data baru berdasarkan **mayoritas kelas** dari **K tetangga terdekat**
+        pada data latih.
+        """)
+
+        st.markdown("## Narasi Cara Kerja")
+        st.markdown("""
+        1. Tentukan nilai **K** (jumlah tetangga).
+        2. Hitung jarak data uji terhadap semua data latih.
+        3. Urutkan jarak, pilih **K** data dengan jarak terkecil.
+        4. Prediksi kelas = **voting mayoritas** dari kelas tetangga terdekat.
+        """)
+
+        st.markdown("## Rumus Jarak (Euclidean Distance)")
+        st.latex(r"d(x,x_i)=\sqrt{\sum_{j=1}^{p}(x_j-x_{ij})^2}")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        x &:\ \text{data uji} \\
+        x_i &:\ \text{data latih ke-}i \\
+        p &:\ \text{jumlah fitur} \\
+        x_j &:\ \text{fitur ke-}j \text{ pada data uji} \\
+        x_{ij} &:\ \text{fitur ke-}j \text{ pada data latih ke-}i
+        \end{aligned}
+        """)
+
+        st.markdown("## Rumus Prediksi (Majority Voting)")
+        st.latex(r"\hat{y}=\text{mode}\{y_{(1)},y_{(2)},\dots,y_{(K)}\}")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        \hat{y} &:\ \text{kelas prediksi} \\
+        y_{(k)} &:\ \text{label dari tetangga terdekat ke-}k \\
+        K &:\ \text{jumlah tetangga terdekat}
+        \end{aligned}
+        """)
+
+        st.info("Catatan: KNN sensitif terhadap skala fitur, sehingga normalisasi/standarisasi biasanya diperlukan.")
+
+    # =========================================================
+    # LOGISTIC REGRESSION
+    # =========================================================
+    elif algo == "Logistic Regression":
+        st.subheader("📌 Logistic Regression")
+
+        st.markdown("## Definisi")
+        st.markdown("""
+        **Logistic Regression** adalah algoritma klasifikasi yang memodelkan probabilitas suatu kelas
+        menggunakan fungsi **sigmoid**. Pada klasifikasi biner, model menghasilkan probabilitas \(P(y=1|x)\).
+        """)
+
+        st.markdown("## Narasi Cara Kerja")
+        st.markdown("""
+        1. Hitung kombinasi linear fitur: \(z=w^Tx+b\)  
+        2. Ubah menjadi probabilitas dengan sigmoid: \(\sigma(z)\)  
+        3. Bandingkan probabilitas dengan threshold (umumnya 0.5) untuk menentukan kelas
+        """)
+
+        st.markdown("## Rumus Model Linear")
+        st.latex(r"z=w^Tx+b")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        x &:\ \text{vektor fitur} \\
+        w &:\ \text{vektor bobot/koefisien} \\
+        b &:\ \text{bias} \\
+        z &:\ \text{skor linear}
+        \end{aligned}
+        """)
+
+        st.markdown("## Rumus Sigmoid")
+        st.latex(r"\sigma(z)=\frac{1}{1+e^{-z}}")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        \sigma(z) &:\ \text{probabilitas kelas positif} \\
+        e &:\ \text{bilangan eksponensial} \\
+        z &:\ \text{skor linear}
+        \end{aligned}
+        """)
+
+        st.markdown("## Aturan Keputusan (Binary)")
+        st.latex(r"""
+        \hat{y}=
+        \begin{cases}
+        1 & \text{jika } \sigma(z)\ge 0.5\\
+        0 & \text{jika } \sigma(z)<0.5
+        \end{cases}
+        """)
+
+        st.markdown("## Loss Function (Binary Cross Entropy)")
+        st.latex(r"""
+        \mathcal{L}=-\frac{1}{n}\sum_{i=1}^{n}
+        \left[y_i\log(\hat{p}_i)+(1-y_i)\log(1-\hat{p}_i)\right]
+        """)
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        n &:\ \text{jumlah data} \\
+        y_i &:\ \text{label aktual data ke-}i \\
+        \hat{p}_i &:\ \text{probabilitas prediksi data ke-}i \\
+        \mathcal{L} &:\ \text{nilai loss}
+        \end{aligned}
+        """)
+
+    # =========================================================
+    # NAIVE BAYES
+    # =========================================================
+    elif algo == "Naive Bayes":
+        st.subheader("📌 Naive Bayes")
+
+        st.markdown("## Definisi")
+        st.markdown("""
+        **Naive Bayes** adalah algoritma klasifikasi probabilistik berbasis **Teorema Bayes**,
+        dengan asumsi “naive” bahwa fitur-fitur bersifat **independen bersyarat** terhadap kelas.
+        """)
+
+        st.markdown("## Narasi Cara Kerja")
+        st.markdown("""
+        1. Hitung prior kelas \(P(C)\)  
+        2. Hitung likelihood fitur \(P(x_j|C)\)  
+        3. Hitung posterior \(P(C|x)\)  
+        4. Pilih kelas dengan posterior terbesar
+        """)
+
+        st.markdown("## Rumus Teorema Bayes")
+        st.latex(r"P(C|x)=\frac{P(x|C)\,P(C)}{P(x)}")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        C &:\ \text{kelas} \\
+        x &:\ \text{data fitur} \\
+        P(C) &:\ \text{prior kelas} \\
+        P(x|C) &:\ \text{likelihood} \\
+        P(C|x) &:\ \text{posterior} \\
+        P(x) &:\ \text{evidence (konstanta normalisasi)}
+        \end{aligned}
+        """)
+
+        st.markdown("## Asumsi Independensi (Naive)")
+        st.latex(r"P(x|C)=\prod_{j=1}^{p}P(x_j|C)")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        p &:\ \text{jumlah fitur} \\
+        x_j &:\ \text{fitur ke-}j \\
+        \prod &:\ \text{operasi perkalian berulang}
+        \end{aligned}
+        """)
+
+        st.markdown("## Gaussian Naive Bayes (untuk fitur numerik)")
+        st.latex(r"""
+        P(x_j|C)=\frac{1}{\sqrt{2\pi\sigma_C^2}}
+        \exp\left(-\frac{(x_j-\mu_C)^2}{2\sigma_C^2}\right)
+        """)
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        \mu_C &:\ \text{rata-rata fitur pada kelas }C \\
+        \sigma_C^2 &:\ \text{variansi fitur pada kelas }C \\
+        \pi &:\ \text{konstanta pi} \\
+        \exp(\cdot) &:\ \text{fungsi eksponensial}
+        \end{aligned}
+        """)
+
+    # =========================================================
+    # DECISION TREE
+    # =========================================================
+    elif algo == "Decision Tree":
+        st.subheader("📌 Decision Tree")
+
+        st.markdown("## Definisi")
+        st.markdown("""
+        **Decision Tree** adalah algoritma klasifikasi yang memisahkan data ke dalam beberapa subset
+        berdasarkan aturan split pada fitur tertentu, sehingga membentuk struktur pohon keputusan.
+        """)
+
+        st.markdown("## Narasi Cara Kerja")
+        st.markdown("""
+        1. Hitung impurity awal (Entropy atau Gini).  
+        2. Uji berbagai kemungkinan split pada fitur.  
+        3. Pilih split terbaik yang paling menurunkan impurity (IG terbesar atau Gini terkecil).  
+        4. Ulangi proses sampai memenuhi kondisi berhenti.
+        """)
+
+        st.markdown("## Rumus Entropy")
+        st.latex(r"Entropy(S)=-\sum_{i=1}^{c}p_i\log_2(p_i)")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        S &:\ \text{data pada node} \\
+        c &:\ \text{jumlah kelas} \\
+        p_i &:\ \text{proporsi kelas ke-}i \\
+        \log_2(\cdot) &:\ \text{logaritma basis 2}
+        \end{aligned}
+        """)
+
+        st.markdown("## Rumus Information Gain")
+        st.latex(r"IG=Entropy(S)-\sum_{j=1}^{k}\frac{|S_j|}{|S|}Entropy(S_j)")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        IG &:\ \text{Information Gain} \\
+        S &:\ \text{dataset induk} \\
+        S_j &:\ \text{subset hasil split ke-}j \\
+        |S| &:\ \text{jumlah data pada }S \\
+        |S_j| &:\ \text{jumlah data pada }S_j \\
+        k &:\ \text{jumlah subset}
+        \end{aligned}
+        """)
+
+        st.markdown("## Rumus Gini Index (Alternatif)")
+        st.latex(r"Gini(S)=1-\sum_{i=1}^{c}p_i^2")
+
+        st.markdown("### Keterangan Simbol")
+        st.latex(r"""
+        \begin{aligned}
+        Gini(S) &:\ \text{tingkat impurity berdasarkan Gini} \\
+        p_i &:\ \text{proporsi kelas ke-}i \\
+        c &:\ \text{jumlah kelas}
+        \end{aligned}
+        """)
+
+    # =========================================================
     # RANDOM FOREST
     # =========================================================
-    if algo == "Random Forest":
+    elif algo == "Random Forest":
+        st.subheader("🌲 Random Forest Classification")
 
-        st.subheader("📌 Random Forest — Proses Lengkap & Bertahap")
-
+        st.markdown("## Definisi Random Forest Classification")
         st.markdown("""
-        Random Forest merupakan algoritma **ensemble learning** yang membangun
-        banyak decision tree dan menggabungkan hasilnya melalui **voting mayoritas**.
+        **Random Forest Classification** adalah metode klasifikasi berbasis **ensemble learning** yang membangun
+        sejumlah **decision tree** menggunakan teknik **bootstrap sampling** dan **pemilihan fitur secara acak**,
+        kemudian menentukan kelas akhir berdasarkan **majority voting** dari seluruh decision tree.
+
+        Metode ini bertujuan untuk meningkatkan akurasi klasifikasi serta mengurangi masalah **overfitting**
+        yang sering terjadi pada decision tree tunggal.
+        """)
+
+        st.markdown("---")
+        st.markdown("## Tahapan Metode Random Forest Classification")
+
+        st.markdown("### 1. Persiapan Dataset")
+        st.markdown("""
+        **Narasi:**  
+        Tahap awal dalam Random Forest Classification adalah menyiapkan dataset yang akan digunakan untuk proses pelatihan model.
+        Dataset terdiri dari sekumpulan data latih yang memiliki fitur dan label kelas.
+        """)
+        st.markdown("**Rumus Dataset:**")
+        st.latex(r"D=\{(x_1,y_1),(x_2,y_2),\dots,(x_n,y_n)\}")
+
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        D &:\ \text{dataset training} \\
+        x_i &:\ \text{vektor fitur data ke-}i \\
+        y_i &:\ \text{label kelas data ke-}i \\
+        n &:\ \text{jumlah data}
+        \end{aligned}
         """)
 
         st.markdown("---")
 
-        # =========================
-        # PARAMETER USER
-        # =========================
-        st.markdown("### 🔧 Pengaturan Parameter")
-
-        n_trees = st.slider("Jumlah Decision Tree (T)", 3, 20, 5)
-        sample_ratio = st.slider("Persentase Data Bootstrap (%)", 50, 100, 100)
-
-        st.markdown("---")
-
-        # ==================================================
-        # 1. BOOTSTRAP SAMPLING
-        # ==================================================
-        st.markdown("## ① Bootstrap Sampling")
-
+        st.markdown("### 2. Bootstrap Sampling")
         st.markdown("""
-        **Bootstrap Sampling** adalah proses pengambilan sampel data secara **acak dengan pengembalian (with replacement)**.
-        Pada Random Forest, **setiap decision tree dilatih menggunakan dataset bootstrap yang berbeda**.
-
-        Tujuan utama:
-        - Membuat setiap pohon keputusan memiliki karakteristik data yang berbeda
-        - Mengurangi risiko **overfitting**
-        - Meningkatkan kemampuan generalisasi model
+        **Narasi:**  
+        Random Forest membentuk beberapa dataset baru dengan teknik **bootstrap sampling**,
+        yaitu pengambilan data secara acak dengan pengembalian (with replacement) dari dataset asli.
         """)
+        st.markdown("**Rumus Konseptual:**")
+        st.latex(r"D_b \sim D")
 
-        st.markdown("Secara matematis, proses bootstrap dapat dituliskan sebagai:")
-
-        st.latex(r"D^* = \{x_i^* \mid x_i^* \sim D\}")
-
-        st.markdown("""
-        Dengan:
-        - $D$ : dataset asli  
-        - $D^*$ : dataset hasil bootstrap  
-        - $x_i^*$ : data yang dipilih secara acak dari $D$
-        """)
-
-        n = int(len(df) * sample_ratio / 100)
-
-        st.markdown("""
-        Ukuran sampel bootstrap ditentukan berdasarkan persentase tertentu dari total data.
-        """)
-
-        st.latex(rf"n = {sample_ratio}\% \times {len(df)} = {n}")
-
-        tree_id = st.slider(
-            "Pilih Decision Tree ke-",
-            min_value=1,
-            max_value=n_trees,
-            value=1,
-            step=1
-        )
-
-        st.markdown(f"""
-        Slider ini digunakan untuk memilih **decision tree ke-{tree_id}**.
-        Pada Random Forest, proses bootstrap sampling dilakukan **sebanyak jumlah tree (T)**,
-        sehingga setiap pohon dilatih menggunakan dataset bootstrap yang berbeda.
-        """)
-        
-        st.markdown("""
-        Selanjutnya, dilakukan pemilihan indeks data secara acak **dengan pengembalian**,
-        sehingga satu data bisa terpilih lebih dari satu kali.
-        """)
-        
-        np.random.seed(42 + tree_id)
-        bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
-
-        # SIMPAN DATASET BOOTSTRAP
-        df_bootstrap = df.loc[bootstrap_indices]
-
-        jumlah_tampil = st.slider(
-            "Jumlah data bootstrap yang ditampilkan (hanya untuk visualisasi)",
-            min_value=5,
-            max_value=50,
-            value=10,
-            step=5
-        )
-        
-        st.dataframe(pd.DataFrame({
-            "Langkah ke-": range(1, jumlah_tampil + 1),
-            "Index Terpilih": bootstrap_indices[:jumlah_tampil],
-            "With Replacement": ["Ya"] * jumlah_tampil
-        }))
-
-        st.markdown("""
-        Tabel di atas menunjukkan contoh hasil bootstrap sampling.
-        Terlihat bahwa proses ini menggunakan **with replacement**, yang menjadi ciri khas metode bootstrap.
-        Tabel di atas hanya menampilkan sebagian kecil hasil bootstrap sampling .
-        Secara keseluruhan, ukuran sampel bootstrap tetap berjumlah **$n$ data** sesuai hasil perhitungan.
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        D &:\ \text{dataset asli} \\
+        D_b &:\ \text{dataset hasil bootstrap} \\
+        OOB &:\ \text{data yang tidak terpilih (Out-of-Bag)}
+        \end{aligned}
         """)
 
         st.markdown("---")
 
-        # ==================================================
-        # 2. PEMBENTUKAN DECISION TREE (Entropy Awal)
-        # ==================================================
-        st.markdown("## ② Pembentukan Decision Tree (Entropy Awal)")
-                # 🔹 NARASI TAMBAHAN
+        st.markdown("### 3. Pemilihan Fitur Secara Acak")
         st.markdown("""
-        Pada tahap ini dilakukan **perhitungan entropy awal** pada seluruh dataset
-        sebelum dilakukan proses split. Entropy digunakan untuk mengukur
-        **tingkat ketidakpastian (impurity)** distribusi kelas pada data training.
-
-        Nilai entropy ini menjadi **acuan awal** dalam pembentukan decision tree.
-        Semakin tinggi nilai entropy, semakin tidak homogen distribusi kelas.
+        **Narasi:**  
+        Pada setiap node decision tree, Random Forest hanya menggunakan sebagian fitur yang dipilih secara acak
+        untuk menentukan pemisahan terbaik, dengan tujuan mengurangi korelasi antar tree.
         """)
+        st.markdown("**Rumus Jumlah Fitur (umum untuk klasifikasi):**")
+        st.latex(r"m=\sqrt{p}")
 
-        # 🔹 RUMUS ENTROPY
-        st.latex(r"Entropy(S) = -\sum_{i=1}^{c} p_i \log_2(p_i)")
-
-        # 🔹 KETERANGAN RUMUS
-        st.markdown("""
-        **Keterangan simbol pada rumus entropy:**
-        - \(S\) : seluruh dataset training  
-        - \(c\) : jumlah kelas pada variabel target  
-        - \(n_i\) : jumlah data pada kelas ke-\(i\)  
-        - \(N\) : total seluruh data  
-        - \(p_i = \frac{n_i}{N}\) : probabilitas kelas ke-\(i\)  
-        - \(\log_2\) : logaritma basis 2  
-        """)
-
-        # Hitung jumlah data per kelas
-        class_counts = df_bootstrap[target_col].value_counts()
-        N = class_counts.sum()
-
-        rows = []
-        subs_entropy = []
-        entropy_S = 0
-
-        for cls, ni in class_counts.items():
-            pi = ni / N
-            rows.append([
-                cls,
-                ni,
-                f"{ni}/{N}",
-                round(pi, 4)
-            ])
-            subs_entropy.append(
-                rf"\frac{{{ni}}}{{{N}}}\log_2({round(pi,4)})"
-            )
-            entropy_S += -pi * np.log2(pi)
-
-        # Tabel detail entropy
-        df_entropy = pd.DataFrame(
-            rows,
-            columns=[
-                "Kelas",
-                "Jumlah Data (nᵢ)",
-                "Substitusi Angka",
-                "Nilai pᵢ"
-            ]
-        )
-
-        st.dataframe(df_entropy, use_container_width=True)
-
-        # Substitusi ke rumus entropy
-        st.markdown("### 🔹 Substitusi ke Rumus Entropy")
-
-        st.latex(
-            r"Entropy(S) = -(" + " + ".join(subs_entropy) + ")"
-        )
-
-        st.latex(
-            rf"Entropy(S) = {round(entropy_S,4)}"
-        )
-
-        st.markdown("""
-        **Interpretasi:**  
-        Nilai entropy menunjukkan tingkat ketidakpastian distribusi kelas
-        pada dataset awal sebelum dilakukan proses split.
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        p &:\ \text{jumlah total fitur} \\
+        m &:\ \text{jumlah fitur acak pada setiap split}
+        \end{aligned}
         """)
 
         st.markdown("---")
 
-        # ==================================================
-        # 3. PERBANDINGAN ENTROPY AWAL ANTAR TREE 
-        # ==================================================
-        st.markdown("## ③ Perbandingan Entropy Awal Antar Tree")
+        st.markdown("### 4. Pembangunan Decision Tree")
+        st.markdown("Setiap dataset bootstrap digunakan untuk membangun satu decision tree.")
 
-        entropy_per_tree = []
+        st.markdown("#### 4.1 Kriteria Pemisahan Node")
 
-        for t in range(1, n_trees + 1):
-            np.random.seed(42 + t)
-            bootstrap_indices = np.random.choice(
-                df.index,
-                size=n,
-                replace=True
-            )
-            df_bootstrap = df.loc[bootstrap_indices]
+        st.markdown("**a. Gini Index**")
+        st.latex(r"Gini(D)=1-\sum_{i=1}^{c}p_i^2")
 
-            class_counts = df_bootstrap[target_col].value_counts()
-            N = class_counts.sum()
+        st.markdown("**b. Entropy**")
+        st.latex(r"Entropy(D)=-\sum_{i=1}^{c}p_i\log_2(p_i)")
 
-            entropy_S = 0
-            for ni in class_counts:
-                pi = ni / N
-                entropy_S += -pi * np.log2(pi)
+        st.markdown("**c. Information Gain**")
+        st.latex(r"IG = Entropy(D) - \sum_{j=1}^{k}\frac{|D_j|}{|D|}Entropy(D_j)")
 
-            entropy_per_tree.append({
-                "Tree ke-": t,
-                "Entropy Awal": round(entropy_S, 4)
-            })
-
-        st.markdown("## 📊 Perbandingan Entropy Awal Antar Tree")
-
-        df_entropy_tree = pd.DataFrame(entropy_per_tree)
-        st.dataframe(df_entropy_tree, use_container_width=True)
-        
-        # Bootstrap ulang sesuai tree yang dipilih user
-        np.random.seed(42 + tree_id)
-        bootstrap_indices = np.random.choice(df.index, size=n, replace=True)
-        df_bootstrap = df.loc[bootstrap_indices]
-
-        st.markdown(f"""
-        Pada bagian berikut akan ditampilkan **perhitungan entropy dan proses split**
-        untuk **Decision Tree ke-{tree_id}** yang dipilih oleh user.
-        Bagian ini bertujuan untuk menunjukkan bagaimana **satu pohon keputusan**
-        dibentuk di dalam Random Forest.
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        D &:\ \text{dataset pada node} \\
+        c &:\ \text{jumlah kelas} \\
+        p_i &:\ \text{proporsi kelas ke-}i \\
+        D_j &:\ \text{subset hasil split ke-}j \\
+        |D| &:\ \text{jumlah data pada }D \\
+        |D_j| &:\ \text{jumlah data pada }D_j \\
+        k &:\ \text{jumlah subset hasil split}
+        \end{aligned}
         """)
-        
-        # ==================================================
-        # HITUNG ULANG ENTROPY AWAL UNTUK TREE TERPILIH
-        # ==================================================
-        class_counts = df_bootstrap[target_col].value_counts()
-        N = class_counts.sum()
-
-        entropy_S = 0
-        for ni in class_counts:
-            pi = ni / N
-            entropy_S += -pi * np.log2(pi)
-
-        # ==================================================
-        # 4. SPLIT DATA & INFORMASI GAIN
-        # ==================================================
-        st.markdown("## ④ Proses Split Data & Informasi Gain")
-
-        ig_results = []
-
-        numeric_features = df_bootstrap.select_dtypes(include="number").columns.drop(target_col, errors="ignore")
-
-        for feature in numeric_features:
-            unique_vals = np.unique(df_bootstrap[feature])
-            thresholds = np.percentile(unique_vals, [10, 25, 50, 75, 90])
-
-            for threshold in thresholds:
-                left = df_bootstrap[df_bootstrap[feature] <= threshold]
-                right = df_bootstrap[df_bootstrap[feature] > threshold]
-
-                if len(left) == 0 or len(right) == 0:
-                    continue
-
-                # Hitung entropy dan dapatkan substitusi LaTeX
-                entropy_left, subs_left = entropy_subset(left)
-                entropy_right, subs_right = entropy_subset(right)
-
-                # Weighted entropy & IG
-                weighted_entropy = (len(left)/len(df_bootstrap))*entropy_left + (len(right)/len(df_bootstrap))*entropy_right
-                IG = entropy_S - weighted_entropy
-
-                # ====== TAMPILKAN LANGKAH PERHITUNGAN ======
-                st.markdown(f"### 🔹 Fitur: {feature} | Threshold: {round(threshold,4)}")
-        
-                st.latex(r"Entropy(S_{left}) = -(" + " + ".join(subs_left) + ") = " + str(round(entropy_left,4)))
-                st.latex(r"Entropy(S_{right}) = -(" + " + ".join(subs_right) + ") = " + str(round(entropy_right,4)))
-        
-                st.latex(
-                    rf"Weighted\ Entropy = \frac{{{len(left)}}}{{{len(df_bootstrap)}}} \times {round(entropy_left,4)} + "
-                    rf"\frac{{{len(right)}}}{{{len(df_bootstrap)}}} \times {round(entropy_right,4)} = {round(weighted_entropy,4)}"
-                )
-        
-                st.latex(
-                    rf"IG = Entropy(S) - Weighted\ Entropy = {round(entropy_S,4)} - {round(weighted_entropy,4)} = {round(IG,4)}"
-                )
-
-                # Simpan hasil ke dataframe
-                ig_results.append({
-                    "Tree ke-": tree_id,
-                    "Fitur": feature,
-                    "Threshold": round(threshold, 4),
-                    "Entropy Split": round(weighted_entropy, 4),
-                    "Information Gain": round(IG, 4)
-                })
-
-        # Tampilkan semua IG
-        df_ig = pd.DataFrame(ig_results)
-        st.markdown("## 📊 Semua Hasil Information Gain")
-        st.dataframe(df_ig.sort_values("Information Gain", ascending=False))
-
-        best_split = df_ig.loc[df_ig["Information Gain"].idxmax()]
-        st.markdown("## 🏆 Split Terbaik (IG Terbesar)")
-        st.dataframe(pd.DataFrame([best_split]))
-
-        # ==================================================
-        # 5. PREDIKSI TIAP TREE
-        # ==================================================
-        st.markdown("## ⑤ Prediksi Tiap Decision Tree")
-
-        st.latex(r"\hat{y}_1, \hat{y}_2, \dots, \hat{y}_T")
-
-        fake_preds = np.random.choice(df[target_col].unique(), size=n_trees)
-
-        st.dataframe(pd.DataFrame({
-            "Tree ke-": range(1, n_trees + 1),
-            "Prediksi": fake_preds
-        }))
 
         st.markdown("---")
 
-        # ==================================================
-        # 6. VOTING MAYORITAS
-        # ==================================================
-        st.markdown("## ⑥ Voting Mayoritas")
+        st.markdown("### 5. Pembentukan Random Forest")
+        st.markdown("""
+        **Narasi:**  
+        Proses bootstrap sampling dan pembangunan decision tree diulang hingga terbentuk sekumpulan pohon keputusan
+        yang disebut Random Forest.
+        """)
+        st.markdown("**Rumus Ensemble:**")
+        st.latex(r"RF=\{Tree_1,Tree_2,\dots,Tree_T\}")
 
-        st.latex(r"\hat{y} = \arg\max_c \sum_{t=1}^{T} I(\hat{y}_t = c)")
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        RF &:\ \text{Random Forest} \\
+        T &:\ \text{jumlah decision tree (n\_estimators)} \\
+        Tree_t &:\ \text{decision tree ke-}t
+        \end{aligned}
+        """)
 
-        vote = pd.Series(fake_preds).value_counts()
-        st.dataframe(vote.to_frame("Jumlah Suara"))
+        st.markdown("---")
 
-        st.info("Menu ini menampilkan **proses matematis Random Forest**, bukan hasil akhir.")
+        st.markdown("### 6. Proses Prediksi (Classification)")
+        st.markdown("""
+        **Narasi:**  
+        Setiap decision tree menghasilkan prediksi kelas terhadap data uji.
+        Kelas akhir ditentukan menggunakan metode **majority voting**.
+        """)
 
+        st.markdown("**Rumus Majority Voting:**")
+        st.latex(r"\hat{y}=\text{mode}\{h_1(x),h_2(x),\dots,h_T(x)\}")
 
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        \hat{y} &:\ \text{kelas prediksi akhir} \\
+        h_t(x) &:\ \text{prediksi dari tree ke-}t \\
+        x &:\ \text{data uji} \\
+        T &:\ \text{jumlah tree}
+        \end{aligned}
+        """)
 
+        st.markdown("---")
 
+        st.markdown("### 7. Evaluasi Model")
 
+        st.markdown("#### 7.1 Confusion Matrix")
+        st.markdown("""
+        | Aktual / Prediksi | Positif | Negatif |
+        |---|---:|---:|
+        | Positif | TP | FN |
+        | Negatif | FP | TN |
+        """)
 
+        st.markdown("#### 7.2 Akurasi")
+        st.latex(r"Accuracy=\frac{TP+TN}{TP+TN+FP+FN}")
 
+        st.markdown("#### 7.3 Precision")
+        st.latex(r"Precision=\frac{TP}{TP+FP}")
 
+        st.markdown("#### 7.4 Recall")
+        st.latex(r"Recall=\frac{TP}{TP+FN}")
 
+        st.markdown("#### 7.5 F1-Score")
+        st.latex(r"F1=2\times\frac{Precision\times Recall}{Precision+Recall}")
 
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        TP &:\ \text{True Positive} \\
+        TN &:\ \text{True Negative} \\
+        FP &:\ \text{False Positive} \\
+        FN &:\ \text{False Negative}
+        \end{aligned}
+        """)
+
+        st.markdown("---")
+
+        st.markdown("### 8. Feature Importance")
+        st.markdown("""
+        **Narasi:**  
+        Random Forest Classification dapat mengukur tingkat kepentingan setiap fitur berdasarkan kontribusinya
+        dalam mengurangi impurity selama proses pembentukan tree.
+        """)
+
+        st.markdown("**Rumus Umum:**")
+        st.latex(r"FI_j=\sum_{t=1}^{T}\sum_{n\in t}\Delta Gini_{n,j}")
+
+        st.markdown("**Keterangan simbol:**")
+        st.latex(r"""
+        \begin{aligned}
+        FI_j &:\ \text{nilai kepentingan fitur ke-}j \\
+        \Delta Gini_{n,j} &:\ \text{penurunan Gini oleh fitur }j\text{ pada node }n \\
+        T &:\ \text{jumlah decision tree}
+        \end{aligned}
+        """)
+
+        st.markdown("---")
+
+        st.markdown("## Kesimpulan")
+        st.markdown("""
+        Random Forest Classification merupakan metode klasifikasi yang efektif karena menggabungkan banyak decision tree,
+        menggunakan data dan fitur acak, serta menentukan hasil akhir melalui mekanisme **majority voting** sehingga
+        menghasilkan performa yang lebih stabil dan akurat.
+        """)
