@@ -13,9 +13,14 @@ st.set_page_config(
     layout="wide"
 )
 
+# ======================
 # SIDEBAR (HANYA DATASET)
+# ======================
 sidebar_upload()
 
+# ======================
+# JUDUL APLIKASI
+# ======================
 st.markdown(
     "<h1 style='text-align:center'>Machine Learning Classification Dashboard</h1>",
     unsafe_allow_html=True
@@ -33,7 +38,7 @@ tabs = st.tabs([
     "📘 About Dataset",
     "📊 Dashboards",
     "🤖 Machine Learning",
-    "🧠 Analisis Model Terbaik",
+    "🧭 Langkah-Langkah Algoritma",
     "🔮 Prediction App",
     "📞 Contact Me"
 ])
@@ -55,4 +60,3 @@ with tabs[4]:
 
 with tabs[5]:
     contact_page()
-
