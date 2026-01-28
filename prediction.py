@@ -12,35 +12,62 @@ from sklearn.linear_model import LogisticRegression
 # =========================
 # UTIL
 # =========================
-def safe_read_csv(path):
-    return pd.read_csv(path, sep=None, engine="python")
+def safe_read_csv(path: str) -> pd.DataFrame:
+    df = pd.read_csv(path, sep=None, engine="python")
+    df.columns = [str(c).strip() for c in df.columns]  # rapihin header
+    return df
 
 
-def force_numeric(df, cols):
+def normalize_col(s: str) -> str:
+    return str(s).strip().lower().replace(" ", "")
+
+
+def resolve_columns(df: pd.DataFrame, wanted: list[str]) -> dict:
+    lookup = {normalize_col(c): c for c in df.columns}
+    mapping = {}
+    missing = []
+    for w in wanted:
+        key = normalize_col(w)
+        if key in lookup:
+            mapping[w] = lookup[key]
+        else:
+            missing.append(w)
+
+    if missing:
+        raise KeyError(
+            f"Kolom tidak ditemukan: {missing}\n"
+            f"Kolom terbaca di file: {list(df.columns)}"
+        )
+    return mapping
+
+
+def force_numeric(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     for c in cols:
-        if c in df.columns:
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+        df[c] = pd.to_numeric(df[c], errors="coerce")
     return df
 
 
 # =========================
-# TRAIN: MATERNAL
+# TRAINERS (CACHE)
 # =========================
 @st.cache_resource
-def train_maternal():
+def train_maternal_from_repo():
     df = safe_read_csv("Maternal Health Risk Data Set.csv")
 
-    features = [
-        "Age", "SystolicBP", "DiastolicBP",
-        "BS", "BodyTemp", "HeartRate"
-    ]
-    target = "RiskLevel"
+    wanted_features = ["Age", "SystolicBP", "DiastolicBP", "BS", "BodyTemp", "HeartRate"]
+    wanted_target = "RiskLevel"
 
-    df = force_numeric(df, features)
-    df = df.dropna(subset=features + [target])
+    mapping = resolve_columns(df, wanted_features + [wanted_target])
 
-    X = df[features]
-    y_raw = df[target].astype(str)
+    feature_cols = [mapping[c] for c in wanted_features]
+    target_col = mapping[wanted_target]
+
+    df = force_numeric(df, feature_cols)
+    df[target_col] = df[target_col].astype(str).str.strip()
+    df = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
+
+    X = df[feature_cols].copy()
+    y_raw = df[target_col].copy()
 
     le = LabelEncoder()
     y = le.fit_transform(y_raw)
@@ -53,53 +80,51 @@ def train_maternal():
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=42
     )
-
     model.fit(X_train, y_train)
 
-    return model, features, le
+    return model, wanted_features, feature_cols, le
 
 
-# =========================
-# TRAIN: OCCUPANCY
-# =========================
 @st.cache_resource
-def train_occupancy():
+def train_occupancy_from_repo():
     df = safe_read_csv("datatraining occupancy.csv")
 
-    features = [
-        "Temperature", "Humidity",
-        "Light", "CO2", "HumidityRatio"
-    ]
-    target = "Occupancy"
+    wanted_features = ["Temperature", "Humidity", "Light", "CO2", "HumidityRatio"]
+    wanted_target = "Occupancy"
 
-    df = force_numeric(df, features + [target])
-    df = df.dropna(subset=features + [target])
+    mapping = resolve_columns(df, wanted_features + [wanted_target])
 
-    X = df[features]
-    y = df[target].astype(int)
+    feature_cols = [mapping[c] for c in wanted_features]
+    target_col = mapping[wanted_target]
+
+    df = force_numeric(df, feature_cols + [target_col])
+    df = df.dropna(subset=feature_cols + [target_col]).reset_index(drop=True)
+
+    X = df[feature_cols].copy()
+    y = df[target_col].astype(int).copy()
 
     model = RandomForestClassifier(
         n_estimators=300,
-        random_state=42
+        random_state=42,
+        min_samples_leaf=2
     )
 
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.2, stratify=y, random_state=42
     )
-
     model.fit(X_train, y_train)
 
-    return model, features
+    return model, wanted_features, feature_cols
 
 
 # =========================
-# UI
+# PAGE
 # =========================
 def prediction_page():
-    st.title("🔮 Prediction App")
+    st.write("**Aplikasi Prediksi Machine Learning**")
 
     pilihan = st.selectbox(
-        "Pilih Jenis Prediksi",
+        "Pilih Jenis Prediksi Machine Learning",
         [
             "Kesehatan (Maternal Health Risk)",
             "Lingkungan (Occupancy Detection)"
@@ -118,68 +143,88 @@ def prediction_page():
 # APP: MATERNAL
 # =========================
 def maternal_app():
-    st.subheader("🩺 Prediksi Risiko Kehamilan")
+    st.title("🩺 Prediksi Risiko Kehamilan (Maternal Health Risk)")
+    st.caption("Input indikator → prediksi tingkat risiko (low / mid / high)")
 
-    model, features, le = train_maternal()
+    try:
+        model, ui_features, real_features, le = train_maternal_from_repo()
+    except Exception as e:
+        st.error("Dataset Kesehatan tidak terbaca / kolom tidak cocok.")
+        st.code(str(e))
+        return
 
-    col1, col2, col3 = st.columns(3)
+    st.subheader("📋 Input Indikator Pasien")
 
-    with col1:
+    c1, c2, c3 = st.columns(3)
+    with c1:
         age = st.number_input("Age", 10, 80, 25)
-        sys = st.number_input("SystolicBP", 70, 200, 120)
-
-    with col2:
-        dia = st.number_input("DiastolicBP", 40, 140, 80)
+        systolic = st.number_input("SystolicBP", 70, 200, 120)
+    with c2:
+        diastolic = st.number_input("DiastolicBP", 40, 140, 80)
         bs = st.number_input("BS", 5.0, 30.0, 7.0)
+    with c3:
+        bodytemp = st.number_input("BodyTemp", 90.0, 110.0, 98.0)
+        heartrate = st.number_input("HeartRate", 40, 140, 80)
 
-    with col3:
-        temp = st.number_input("BodyTemp", 90.0, 110.0, 98.0)
-        hr = st.number_input("HeartRate", 40, 140, 80)
+    input_df = pd.DataFrame([[age, systolic, diastolic, bs, bodytemp, heartrate]], columns=real_features)
 
-    input_df = pd.DataFrame(
-        [[age, sys, dia, bs, temp, hr]],
-        columns=features
-    )
-
-    if st.button("🔍 Prediksi Risiko"):
+    if st.button("🔍 Prediksi Risiko Kehamilan"):
         probs = model.predict_proba(input_df)[0]
-        idx = np.argmax(probs)
+        idx = int(np.argmax(probs))
         label = le.inverse_transform([idx])[0]
 
-        st.success(f"**Prediksi:** {label.upper()}")
-        st.metric("Confidence", f"{probs[idx]:.2%}")
+        st.markdown("---")
+        st.subheader("📊 Hasil Prediksi")
+
+        colA, colB = st.columns(2)
+        colA.metric("Prediksi Risiko", label.upper())
+        colB.metric("Confidence", f"{probs[idx]:.2%}")
+
+        st.subheader("🧾 Probabilitas Setiap Kelas")
+        prob_df = pd.DataFrame({
+            "Kelas": le.inverse_transform(np.arange(len(probs))),
+            "Probabilitas": probs
+        }).sort_values("Probabilitas", ascending=False)
+        st.table(prob_df)
 
 
 # =========================
 # APP: OCCUPANCY
 # =========================
 def occupancy_app():
-    st.subheader("🏢 Prediksi Status Ruangan")
+    st.title("🏢 Prediksi Status Ruangan (Occupancy Detection)")
+    st.caption("Input indikator sensor → prediksi ruangan TERISI / KOSONG")
 
-    model, features = train_occupancy()
+    try:
+        model, ui_features, real_features = train_occupancy_from_repo()
+    except Exception as e:
+        st.error("Dataset Lingkungan tidak terbaca / kolom tidak cocok.")
+        st.code(str(e))
+        return
 
-    col1, col2, col3 = st.columns(3)
+    st.subheader("📋 Input Indikator Sensor")
 
-    with col1:
-        temp = st.number_input("Temperature", -10.0, 60.0, 23.0)
-        hum = st.number_input("Humidity", 0.0, 100.0, 27.0)
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        temp = st.number_input("Temperature", -10.0, 60.0, 23.0, step=0.1)
+        hum = st.number_input("Humidity", 0.0, 100.0, 27.0, step=0.1)
+    with c2:
+        light = st.number_input("Light", 0.0, 2000.0, 426.0, step=1.0)
+        co2 = st.number_input("CO2", 0.0, 5000.0, 720.0, step=1.0)
+    with c3:
+        hratio = st.number_input("HumidityRatio", 0.0, 1.0, 0.0048, step=0.0001)
 
-    with col2:
-        light = st.number_input("Light", 0.0, 2000.0, 426.0)
-        co2 = st.number_input("CO2", 0.0, 5000.0, 720.0)
+    input_df = pd.DataFrame([[temp, hum, light, co2, hratio]], columns=real_features)
 
-    with col3:
-        hratio = st.number_input("HumidityRatio", 0.0, 1.0, 0.0048)
+    if st.button("🔍 Prediksi Status Ruangan"):
+        prob_occ = float(model.predict_proba(input_df)[0][1])
+        pred = int(model.predict(input_df)[0])
 
-    input_df = pd.DataFrame(
-        [[temp, hum, light, co2, hratio]],
-        columns=features
-    )
+        status = "TERISI (Occupied)" if pred == 1 else "KOSONG (Not Occupied)"
 
-    if st.button("🔍 Prediksi Ruangan"):
-        prob = model.predict_proba(input_df)[0][1]
-        pred = model.predict(input_df)[0]
+        st.markdown("---")
+        st.subheader("📊 Hasil Prediksi")
 
-        status = "TERISI" if pred == 1 else "KOSONG"
-        st.success(f"**Status Ruangan:** {status}")
-        st.metric("Probabilitas Terisi", f"{prob:.2%}")
+        colA, colB = st.columns(2)
+        colA.metric("Probabilitas Terisi", f"{prob_occ:.2%}")
+        colB.metric("Prediksi Status", status)
